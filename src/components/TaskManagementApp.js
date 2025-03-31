@@ -218,7 +218,7 @@ const TaskManagementApp = () => {
   const handleDragStart = (taskId, e) => {
     setDraggedTask(taskId);
     
-    // ドラッグ中のプレビュー画像を透明にして目立たなくする
+    // ドラッグ中のプレビュー画像を設定
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
       // ドラッグイメージを設定（ゴーストイメージ）
@@ -233,7 +233,6 @@ const TaskManagementApp = () => {
           document.body.removeChild(dragImg);
         }, 0);
       } catch (err) {
-        // エラーが発生しても続行
         console.error("Failed to set drag image", err);
       }
     }
@@ -354,8 +353,8 @@ const TaskManagementApp = () => {
                     draggable
                     onDragStart={(e) => handleDragStart(task.id, e)}
                     onDragEnd={handleDragEnd}
-                    style={{ borderLeft: `4px solid ${getProjectColor(projectName)}` ,borderRadius: '0.5rem', boxShadow: '0 10px 15px rgba(0, 0, 0, 0.1)' }}
-                    className={`bg-white p-3 rounded-lg shadow-lg cursor-move task-card ${draggedTask === task.id ? 'opacity-50' : ''}`}
+                    style={{ borderLeft: `4px solid ${getProjectColor(projectName)}` }}
+                    className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                   >
                     {editingId === task.id ? (
                       <div className="flex flex-col w-full">
@@ -465,7 +464,7 @@ const TaskManagementApp = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(task.id, e)}
                   onDragEnd={handleDragEnd}
-                  className={`bg-white p-3 rounded shadow cursor-move task-card ${draggedTask === task.id ? 'opacity-50' : ''}`}
+                  className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                 >
                   {editingId === task.id ? (
                     <div className="flex flex-col w-full">
@@ -581,7 +580,7 @@ const TaskManagementApp = () => {
     }
     
     .task-card {
-      transition: transform 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
     
     .task-card:hover {
