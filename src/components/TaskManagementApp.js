@@ -140,7 +140,7 @@ const TaskManagementApp = () => {
   const [filter, setFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState(null);
-  const [newComment, setNewComment] = useState('');
+  const [commentInputs, setCommentInputs] = useState({});
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -179,9 +179,18 @@ const TaskManagementApp = () => {
     }
   };
 
+  // コメント入力の状態を更新
+  const handleCommentChange = (taskId, value) => {
+    setCommentInputs(prev => ({
+      ...prev,
+      [taskId]: value
+    }));
+  };
+
   // コメントを追加
   const addComment = (taskId) => {
-    if (newComment.trim()) {
+    const commentText = commentInputs[taskId];
+    if (commentText && commentText.trim()) {
       setTasks(prevTasks =>
         prevTasks.map(task =>
           task.id === taskId
@@ -191,7 +200,7 @@ const TaskManagementApp = () => {
                   ...task.comments,
                   {
                     id: Date.now(),
-                    text: newComment,
+                    text: commentText,
                     createdAt: new Date().toISOString(),
                   },
                 ],
@@ -199,7 +208,11 @@ const TaskManagementApp = () => {
             : task
         )
       );
-      setNewComment('');
+      // コメント入力欄をクリア
+      setCommentInputs(prev => ({
+        ...prev,
+        [taskId]: ''
+      }));
     }
   };
 
@@ -807,8 +820,8 @@ const TaskManagementApp = () => {
               </div>
               <div className="mt-4">
                 <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  value={commentInputs[task.id] || ''}
+                  onChange={(e) => handleCommentChange(task.id, e.target.value)}
                   placeholder="コメントを入力..."
                   className="w-full p-2 border rounded-lg"
                   rows="3"
