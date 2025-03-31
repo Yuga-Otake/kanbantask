@@ -119,7 +119,15 @@ const TaskManagementApp = () => {
   const [tasks, setTasks] = useState(() => {
     const savedTasks = localStorage.getItem('tasks');
     console.log('Loaded tasks from localStorage:', savedTasks);
-    return savedTasks ? JSON.parse(savedTasks) : [];
+    if (savedTasks) {
+      const parsedTasks = JSON.parse(savedTasks);
+      // 既存のタスクにcomments配列を追加
+      return parsedTasks.map(task => ({
+        ...task,
+        comments: task.comments || []
+      }));
+    }
+    return [];
   });
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
@@ -131,6 +139,8 @@ const TaskManagementApp = () => {
   const [draggedTask, setDraggedTask] = useState(null);
   const [filter, setFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [newComment, setNewComment] = useState('');
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -160,19 +170,51 @@ const TaskManagementApp = () => {
         createdAt: new Date().toISOString(),
         dueDate: newTaskDueDate || null,
         project: newTaskProject || null,
+        comments: [], // コメント配列を追加
       };
       console.log('Adding new task:', newTask);
-      console.log('TASK_STATUS.TODO:', TASK_STATUS.TODO);
-      console.log('Current tasks:', tasks);
-      setTasks(prevTasks => {
-        const updatedTasks = [...prevTasks, newTask];
-        console.log('Updated tasks:', updatedTasks);
-        return updatedTasks;
-      });
+      setTasks(prevTasks => [...prevTasks, newTask]);
       setNewTaskTitle('');
       setNewTaskDueDate('');
-      // プロジェクト名は再利用しやすいように残しておく
     }
+  };
+
+  // コメントを追加
+  const addComment = (taskId) => {
+    if (newComment.trim()) {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId
+            ? {
+                ...task,
+                comments: [
+                  ...task.comments,
+                  {
+                    id: Date.now(),
+                    text: newComment,
+                    createdAt: new Date().toISOString(),
+                  },
+                ],
+              }
+            : task
+        )
+      );
+      setNewComment('');
+    }
+  };
+
+  // コメントを削除
+  const deleteComment = (taskId, commentId) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              comments: task.comments.filter(comment => comment.id !== commentId),
+            }
+          : task
+      )
+    );
   };
 
   // タスクの状態を更新
@@ -429,6 +471,12 @@ const TaskManagementApp = () => {
                             編集
                           </button>
                           <button
+                            className="text-sm text-green-500 hover:text-green-700"
+                            onClick={() => setSelectedTask(task)}
+                          >
+                            詳細
+                          </button>
+                          <button
                             className="text-sm text-red-500 hover:text-red-700"
                             onClick={() => deleteTask(task.id)}
                           >
@@ -537,6 +585,12 @@ const TaskManagementApp = () => {
                           onClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
                         >
                           編集
+                        </button>
+                        <button
+                          className="text-sm text-green-500 hover:text-green-700"
+                          onClick={() => setSelectedTask(task)}
+                        >
+                          詳細
                         </button>
                         <button
                           className="text-sm text-red-500 hover:text-red-700"
@@ -686,6 +740,93 @@ const TaskManagementApp = () => {
     document.body.removeChild(link);
   };
 
+  // 詳細モーダルコンポーネント
+  const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
+    if (!task) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-xl font-bold">{task.title}</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-gray-700">プロジェクト</h3>
+              <p className="text-gray-600">{task.project || '未設定'}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700">締め切り</h3>
+              <p className={`text-gray-600 ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
+                {task.dueDate ? formatDate(task.dueDate) : '未設定'}
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700">状態</h3>
+              <p className="text-gray-600">
+                {task.status === TASK_STATUS.TODO ? '未着手' :
+                 task.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700">作成日</h3>
+              <p className="text-gray-600">{formatDate(task.createdAt)}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-700">コメント</h3>
+              <div className="space-y-2">
+                {task.comments.map(comment => (
+                  <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <p className="text-gray-700">{comment.text}</p>
+                      <button
+                        onClick={() => onDeleteComment(task.id, comment.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{formatDate(comment.createdAt)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="コメントを入力..."
+                  className="w-full p-2 border rounded-lg"
+                  rows="3"
+                />
+                <button
+                  onClick={() => onAddComment(task.id)}
+                  className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  コメントを追加
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-screen min-h-screen p-4 bg-white rounded-lg shadow-lg max-w-none">
       <style>{customStyles}</style>
@@ -794,7 +935,7 @@ const TaskManagementApp = () => {
                 key={project}
                 className={`px-3 py-1 text-sm ${projectFilter === project ? 'text-white' : 'text-gray-700'}`}
                 style={{ 
-                  backgroundColor: projectFilter === project ? 'rgb(59, 130, 246)' : getProjectColor(project) 
+                  backgroundColor: projectFilter === project ? getProjectColor(project) : getProjectColor(project)
                 }}
                 onClick={() => setProjectFilter(project)}
               >
@@ -844,6 +985,14 @@ const TaskManagementApp = () => {
           );
         })()}
       </div>
+
+      {/* タスク詳細モーダル */}
+      <TaskDetailModal
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onAddComment={addComment}
+        onDeleteComment={deleteComment}
+      />
     </div>
   );
 };
