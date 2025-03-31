@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/kanbantask/static/css/main.c41e2c9a.css",
+    "main.js": "/kanbantask/static/js/main.d793be31.js",
+    "static/js/453.02004393.chunk.js": "/kanbantask/static/js/453.02004393.chunk.js",
+    "index.html": "/kanbantask/index.html",
+    "main.c41e2c9a.css.map": "/kanbantask/static/css/main.c41e2c9a.css.map",
+    "main.d793be31.js.map": "/kanbantask/static/js/main.d793be31.js.map",
+    "453.02004393.chunk.js.map": "/kanbantask/static/js/453.02004393.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.c41e2c9a.css",
+    "static/js/main.d793be31.js"
+  ]
+}
