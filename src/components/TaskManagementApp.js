@@ -143,7 +143,6 @@ const TaskManagementApp = () => {
   const [projectFilter, setProjectFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
-  const commentInputRefs = React.useRef({});
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -192,9 +191,8 @@ const TaskManagementApp = () => {
 
   // コメントを追加
   const addComment = (taskId) => {
-    // refから現在の値を取得
-    const commentInputRef = commentInputRefs.current[taskId];
-    const commentText = commentInputRef ? commentInputRef.value : (commentInputs[taskId] || '');
+    // refから現在の値を取得（この関数は直接使用されなくなるが互換性のために残す）
+    const commentText = commentInputs[taskId] || '';
     
     if (commentText && commentText.trim()) {
       setTasks(prevTasks =>
@@ -216,9 +214,6 @@ const TaskManagementApp = () => {
       );
       
       // コメント入力欄をクリア
-      if (commentInputRef) {
-        commentInputRef.value = '';
-      }
       setCommentInputs(prev => ({
         ...prev,
         [taskId]: ''
@@ -779,13 +774,30 @@ const TaskManagementApp = () => {
 
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
-    if (!task) return null;
+    // コメント入力用のrefを作成
+    const commentInputRef = React.useRef(null);
     
-    // コメント入力用refを設定
+    // フックは条件付きで呼び出さないようにする
     React.useEffect(() => {
-      // refオブジェクトが初期化されていることを確認
-      commentInputRefs.current[task.id] = commentInputRefs.current[task.id] || null;
-    }, [task]);
+      if (task && commentInputRef.current) {
+        // 初期値を設定
+        commentInputRef.current.value = commentInputs[task.id] || '';
+      }
+    }, [task, commentInputs]);
+    
+    if (!task) return null;
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (commentInputRef.current) {
+        const commentText = commentInputRef.current.value;
+        if (commentText && commentText.trim()) {
+          onAddComment(task.id);
+          // フォームをリセット
+          commentInputRef.current.value = '';
+        }
+      }
+    };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -848,10 +860,9 @@ const TaskManagementApp = () => {
                   </div>
                 ))}
               </div>
-              <form onSubmit={(e) => { e.preventDefault(); onAddComment(task.id); }} className="mt-4">
+              <form onSubmit={handleSubmit} className="mt-4">
                 <textarea
-                  defaultValue={commentInputs[task.id] || ''}
-                  ref={(el) => commentInputRefs.current[task.id] = el}
+                  ref={commentInputRef}
                   placeholder="コメントを入力..."
                   className="w-full p-2 border rounded-lg"
                   rows="3"
