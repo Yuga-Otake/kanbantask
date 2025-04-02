@@ -121,10 +121,11 @@ const TaskManagementApp = () => {
     console.log('Loaded tasks from localStorage:', savedTasks);
     if (savedTasks) {
       const parsedTasks = JSON.parse(savedTasks);
-      // 既存のタスクにcomments配列を追加
+      // 既存のタスクにcomments配列とsubtasks配列を追加
       return parsedTasks.map(task => ({
         ...task,
-        comments: task.comments || []
+        comments: task.comments || [],
+        subtasks: task.subtasks || []
       }));
     }
     return [];
@@ -173,6 +174,7 @@ const TaskManagementApp = () => {
         dueDate: newTaskDueDate || null,
         project: newTaskProject || null,
         comments: [], // コメント配列を追加
+        subtasks: [], // サブタスク配列を追加
       };
       console.log('Adding new task:', newTask);
       setTasks(prevTasks => [...prevTasks, newTask]);
@@ -199,6 +201,7 @@ const TaskManagementApp = () => {
       dueDate: null,
       project: null,
       comments: [],
+      subtasks: [], // サブタスク配列を追加
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
     
@@ -533,6 +536,11 @@ const TaskManagementApp = () => {
                                 期限: {formatDate(task.dueDate)}
                               </span>
                             )}
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <span className="text-xs bg-gray-200 px-1 rounded">
+                                サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-col space-y-1">
@@ -812,10 +820,68 @@ const TaskManagementApp = () => {
     document.body.removeChild(link);
   };
 
+  // サブタスクを追加
+  const addSubtask = (taskId, subtaskText) => {
+    if (subtaskText.trim()) {
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId
+            ? {
+                ...task,
+                subtasks: [
+                  ...task.subtasks,
+                  {
+                    id: Date.now(),
+                    text: subtaskText,
+                    completed: false,
+                    createdAt: new Date().toISOString(),
+                  },
+                ],
+              }
+            : task
+        )
+      );
+    }
+  };
+
+  // サブタスクの状態を更新（完了/未完了）
+  const toggleSubtaskCompletion = (taskId, subtaskId) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === subtaskId
+                  ? { ...subtask, completed: !subtask.completed }
+                  : subtask
+              ),
+            }
+          : task
+      )
+    );
+  };
+
+  // サブタスクを削除
+  const deleteSubtask = (taskId, subtaskId) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.filter(subtask => subtask.id !== subtaskId),
+            }
+          : task
+      )
+    );
+  };
+
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
     // コメント入力用のrefを作成
     const commentInputRef = React.useRef(null);
+    // サブタスク入力用のrefを作成
+    const subtaskInputRef = React.useRef(null);
     
     // フックは条件付きで呼び出さないようにする
     React.useEffect(() => {
@@ -835,6 +901,18 @@ const TaskManagementApp = () => {
           onAddComment(task.id);
           // フォームをリセット
           commentInputRef.current.value = '';
+        }
+      }
+    };
+
+    const handleSubtaskSubmit = (e) => {
+      e.preventDefault();
+      if (subtaskInputRef.current) {
+        const subtaskText = subtaskInputRef.current.value;
+        if (subtaskText && subtaskText.trim()) {
+          addSubtask(task.id, subtaskText);
+          // 入力欄をクリア
+          subtaskInputRef.current.value = '';
         }
       }
     };
@@ -878,6 +956,54 @@ const TaskManagementApp = () => {
             <div>
               <h3 className="font-semibold text-gray-700">作成日</h3>
               <p className="text-gray-600">{formatDate(task.createdAt)}</p>
+            </div>
+
+            {/* サブタスク セクション */}
+            <div>
+              <h3 className="font-semibold text-gray-700">サブタスク</h3>
+              <div className="space-y-2 mt-2">
+                {task.subtasks && task.subtasks.length > 0 ? (
+                  task.subtasks.map(subtask => (
+                    <div key={subtask.id} className="flex items-center justify-between py-1 border-b">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={subtask.completed}
+                          onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                          className="mr-2"
+                        />
+                        <span className={subtask.completed ? 'line-through text-gray-400' : ''}>
+                          {subtask.text}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => deleteSubtask(task.id, subtask.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 italic">サブタスクはありません</p>
+                )}
+              </div>
+              <form onSubmit={handleSubtaskSubmit} className="mt-2 flex items-center">
+                <input
+                  type="text"
+                  ref={subtaskInputRef}
+                  placeholder="新しいサブタスクを入力..."
+                  className="flex-grow p-2 border rounded-l"
+                />
+                <button
+                  type="submit"
+                  className="bg-green-500 text-white p-2 rounded-r"
+                >
+                  追加
+                </button>
+              </form>
             </div>
 
             <div>
