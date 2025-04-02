@@ -136,6 +136,8 @@ const TaskManagementApp = () => {
   const [editText, setEditText] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editProject, setEditProject] = useState('');
+  const editTextRef = React.useRef(null);
+  const editProjectRef = React.useRef(null);
   const [draggedTask, setDraggedTask] = useState(null);
   const [filter, setFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
@@ -250,18 +252,27 @@ const TaskManagementApp = () => {
     setEditText(title);
     setEditDueDate(dueDate || '');
     setEditProject(project || '');
+    // 次のレンダリング後にフォーカスを設定
+    setTimeout(() => {
+      if (editTextRef.current) {
+        editTextRef.current.focus();
+      }
+    }, 10);
   };
 
   // タスクの編集を保存
   const saveEdit = () => {
-    if (editText.trim()) {
+    const currentEditText = editTextRef.current ? editTextRef.current.value : editText;
+    const currentEditProject = editProjectRef.current ? editProjectRef.current.value : editProject;
+    
+    if (currentEditText && currentEditText.trim()) {
       setTasks(
         tasks.map(task =>
           task.id === editingId ? { 
             ...task, 
-            title: editText,
+            title: currentEditText,
             dueDate: editDueDate || null,
-            project: editProject || null
+            project: currentEditProject || null
           } : task
         )
       );
@@ -269,31 +280,9 @@ const TaskManagementApp = () => {
     setEditingId(null);
   };
 
-  // 編集テキストの更新
-  const handleEditTextChange = (e) => {
-    e.preventDefault();
-    const newValue = e.target.value;
-    setEditText(newValue);
-  };
-
-  // 編集プロジェクトの更新
-  const handleEditProjectChange = (e) => {
-    e.preventDefault();
-    const newValue = e.target.value;
-    setEditProject(newValue);
-  };
-
   // 編集締め切り日の更新
   const handleEditDueDateChange = (e) => {
-    e.preventDefault();
-    const newValue = e.target.value;
-    setEditDueDate(newValue);
-  };
-
-  // 編集フォームのサブミット
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    saveEdit();
+    setEditDueDate(e.target.value);
   };
 
   // ドラッグ開始ハンドラー
@@ -439,15 +428,14 @@ const TaskManagementApp = () => {
                     className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                   >
                     {editingId === task.id ? (
-                      <form onSubmit={handleEditSubmit} className="flex flex-col w-full">
+                      <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
                         <div className="flex mb-2">
                           <input
                             type="text"
                             className="flex-grow p-1 border rounded-l"
-                            value={editText}
-                            onChange={handleEditTextChange}
+                            defaultValue={editText}
+                            ref={editTextRef}
                             autoFocus
-                            style={{ imeMode: 'active' }}
                           />
                           <button
                             type="submit"
@@ -471,9 +459,8 @@ const TaskManagementApp = () => {
                             type="text"
                             className="flex-grow p-1 border rounded"
                             list="edit-project-list"
-                            value={editProject}
-                            onChange={handleEditProjectChange}
-                            style={{ imeMode: 'active' }}
+                            defaultValue={editProject}
+                            ref={editProjectRef}
                           />
                           <datalist id="edit-project-list">
                             {getProjects().map(project => (
@@ -557,15 +544,14 @@ const TaskManagementApp = () => {
                   className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                 >
                   {editingId === task.id ? (
-                    <form onSubmit={handleEditSubmit} className="flex flex-col w-full">
+                    <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
                       <div className="flex mb-2">
                         <input
                           type="text"
                           className="flex-grow p-1 border rounded-l"
-                          value={editText}
-                          onChange={handleEditTextChange}
+                          defaultValue={editText}
+                          ref={editTextRef}
                           autoFocus
-                          style={{ imeMode: 'active' }}
                         />
                         <button
                           type="submit"
@@ -589,9 +575,8 @@ const TaskManagementApp = () => {
                           type="text"
                           className="flex-grow p-1 border rounded"
                           list="edit-project-list"
-                          value={editProject}
-                          onChange={handleEditProjectChange}
-                          style={{ imeMode: 'active' }}
+                          defaultValue={editProject}
+                          ref={editProjectRef}
                         />
                         <datalist id="edit-project-list">
                           {getProjects().map(project => (
