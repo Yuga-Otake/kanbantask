@@ -234,23 +234,31 @@ const TaskManagementApp = () => {
     const commentText = commentInput ? commentInput.value : commentInputs[taskId] || '';
     
     if (commentText && commentText.trim()) {
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? {
-                ...task,
-                comments: [
-                  ...task.comments,
-                  {
-                    id: Date.now(),
-                    text: commentText,
-                    createdAt: new Date().toISOString(),
-                  },
-                ],
-              }
-            : task
-        )
+      // 新しいコメントオブジェクトを作成
+      const newComment = {
+        id: Date.now(),
+        text: commentText,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // タスクの状態を更新
+      const updatedTasks = tasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              comments: [...task.comments, newComment],
+            }
+          : task
       );
+      
+      // タスク状態を更新
+      setTasks(updatedTasks);
+      
+      // 選択中のタスクも更新して表示を反映
+      const updatedTask = updatedTasks.find(task => task.id === taskId);
+      if (updatedTask && selectedTask && selectedTask.id === taskId) {
+        setSelectedTask(updatedTask);
+      }
       
       // コメント入力欄をクリア
       setCommentInputs(prev => ({
@@ -271,16 +279,24 @@ const TaskManagementApp = () => {
 
   // コメントを削除
   const deleteComment = (taskId, commentId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              comments: task.comments.filter(comment => comment.id !== commentId),
-            }
-          : task
-      )
+    // タスクの状態を更新
+    const updatedTasks = tasks.map(task =>
+      task.id === taskId
+        ? {
+            ...task,
+            comments: task.comments.filter(comment => comment.id !== commentId),
+          }
+        : task
     );
+    
+    // タスク状態を更新
+    setTasks(updatedTasks);
+    
+    // 選択中のタスクも更新して表示を反映
+    const updatedTask = updatedTasks.find(task => task.id === taskId);
+    if (updatedTask && selectedTask && selectedTask.id === taskId) {
+      setSelectedTask(updatedTask);
+    }
   };
 
   // タスクの状態を更新
@@ -1146,9 +1162,12 @@ const TaskManagementApp = () => {
       if (commentInputRef.current) {
         const commentText = commentInputRef.current.value;
         if (commentText && commentText.trim()) {
+          // コメントを追加
           onAddComment(currentTask.id);
+          
           // フォームをリセット
           commentInputRef.current.value = '';
+          
           // フォーカスを維持
           setTimeout(() => {
             if (commentInputRef.current) {
