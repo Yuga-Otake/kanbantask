@@ -271,17 +271,29 @@ const TaskManagementApp = () => {
 
   // 編集テキストの更新
   const handleEditTextChange = (e) => {
-    setEditText(e.target.value);
+    e.preventDefault();
+    const newValue = e.target.value;
+    setEditText(newValue);
   };
 
   // 編集プロジェクトの更新
   const handleEditProjectChange = (e) => {
-    setEditProject(e.target.value);
+    e.preventDefault();
+    const newValue = e.target.value;
+    setEditProject(newValue);
   };
 
   // 編集締め切り日の更新
   const handleEditDueDateChange = (e) => {
-    setEditDueDate(e.target.value);
+    e.preventDefault();
+    const newValue = e.target.value;
+    setEditDueDate(newValue);
+  };
+
+  // 編集フォームのサブミット
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    saveEdit();
   };
 
   // ドラッグ開始ハンドラー
@@ -427,7 +439,7 @@ const TaskManagementApp = () => {
                     className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                   >
                     {editingId === task.id ? (
-                      <div className="flex flex-col w-full">
+                      <form onSubmit={handleEditSubmit} className="flex flex-col w-full">
                         <div className="flex mb-2">
                           <input
                             type="text"
@@ -438,8 +450,8 @@ const TaskManagementApp = () => {
                             style={{ imeMode: 'active' }}
                           />
                           <button
+                            type="submit"
                             className="bg-green-500 text-white p-1 px-2 rounded-r"
-                            onClick={saveEdit}
                           >
                             保存
                           </button>
@@ -469,7 +481,7 @@ const TaskManagementApp = () => {
                             ))}
                           </datalist>
                         </div>
-                      </div>
+                      </form>
                     ) : (
                       <div className="flex items-start">
                         <input
@@ -545,7 +557,7 @@ const TaskManagementApp = () => {
                   className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                 >
                   {editingId === task.id ? (
-                    <div className="flex flex-col w-full">
+                    <form onSubmit={handleEditSubmit} className="flex flex-col w-full">
                       <div className="flex mb-2">
                         <input
                           type="text"
@@ -556,8 +568,8 @@ const TaskManagementApp = () => {
                           style={{ imeMode: 'active' }}
                         />
                         <button
+                          type="submit"
                           className="bg-green-500 text-white p-1 px-2 rounded-r"
-                          onClick={saveEdit}
                         >
                           保存
                         </button>
@@ -587,7 +599,7 @@ const TaskManagementApp = () => {
                           ))}
                         </datalist>
                       </div>
-                    </div>
+                    </form>
                   ) : (
                     <div className="flex items-start">
                       <input
