@@ -537,9 +537,78 @@ const TaskManagementApp = () => {
                               </span>
                             )}
                             {task.subtasks && task.subtasks.length > 0 && (
-                              <span className="text-xs bg-gray-200 px-1 rounded">
+                              <span 
+                                className="text-xs bg-gray-200 px-1 rounded cursor-pointer hover:bg-gray-300"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedTask(task);
+                                }}
+                              >
                                 サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
                               </span>
+                            )}
+                          </div>
+                          
+                          {/* サブタスクの追加フォーム */}
+                          <div className="mt-2 border-t pt-2">
+                            <div className="flex">
+                              <input
+                                type="text"
+                                placeholder="+ サブタスクを追加"
+                                className="text-sm w-full py-1 px-2 border rounded"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter' && e.target.value.trim()) {
+                                    addSubtask(task.id, e.target.value);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                            </div>
+                            
+                            {/* サブタスクのリスト表示 */}
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <div className="mt-1 space-y-1">
+                                {task.subtasks.map(subtask => (
+                                  <div key={subtask.id} className="flex items-center text-sm">
+                                    <input
+                                      type="checkbox"
+                                      checked={subtask.completed}
+                                      onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                      className="mr-1"
+                                    />
+                                    <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`}>
+                                      {subtask.text}
+                                    </span>
+                                    <button
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-1"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                    {subtask.dueDate && (
+                                      <span className={`text-xs ml-1 ${getDueDateClassName(subtask.dueDate, subtask.completed)}`}>
+                                        {formatDate(subtask.dueDate)}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        const dueDate = prompt("締め切り日を入力 (yyyy-mm-dd):", subtask.dueDate || "");
+                                        if (dueDate !== null) {
+                                          updateSubtaskDueDate(task.id, subtask.id, dueDate);
+                                        }
+                                      }}
+                                      className="text-blue-500 hover:text-blue-700 ml-1"
+                                      title="締め切り日を設定"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -835,6 +904,7 @@ const TaskManagementApp = () => {
                     text: subtaskText,
                     completed: false,
                     createdAt: new Date().toISOString(),
+                    dueDate: null,
                   },
                 ],
               }
@@ -842,6 +912,24 @@ const TaskManagementApp = () => {
         )
       );
     }
+  };
+  
+  // サブタスクの締め切り日を更新
+  const updateSubtaskDueDate = (taskId, subtaskId, dueDate) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === subtaskId
+                  ? { ...subtask, dueDate: dueDate || null }
+                  : subtask
+              ),
+            }
+          : task
+      )
+    );
   };
 
   // サブタスクの状態を更新（完了/未完了）
@@ -883,22 +971,36 @@ const TaskManagementApp = () => {
     // サブタスク入力用のrefを作成
     const subtaskInputRef = React.useRef(null);
     
+    // 現在のタスク情報を取得するための状態変数
+    const [currentTask, setCurrentTask] = useState(task);
+    
+    // タスクが変更された場合に更新
+    useEffect(() => {
+      if (task) {
+        // tasksステート配列から最新のタスク情報を取得
+        const updatedTask = tasks.find(t => t.id === task.id);
+        if (updatedTask) {
+          setCurrentTask(updatedTask);
+        }
+      }
+    }, [task, tasks]);
+    
     // フックは条件付きで呼び出さないようにする
     React.useEffect(() => {
-      if (task && commentInputRef.current) {
+      if (currentTask && commentInputRef.current) {
         // 初期値を設定
-        commentInputRef.current.value = commentInputs[task.id] || '';
+        commentInputRef.current.value = commentInputs[currentTask.id] || '';
       }
-    }, [task, commentInputs]);
+    }, [currentTask, commentInputs]);
     
-    if (!task) return null;
+    if (!currentTask) return null;
 
     const handleSubmit = (e) => {
       e.preventDefault();
       if (commentInputRef.current) {
         const commentText = commentInputRef.current.value;
         if (commentText && commentText.trim()) {
-          onAddComment(task.id);
+          onAddComment(currentTask.id);
           // フォームをリセット
           commentInputRef.current.value = '';
         }
@@ -910,7 +1012,7 @@ const TaskManagementApp = () => {
       if (subtaskInputRef.current) {
         const subtaskText = subtaskInputRef.current.value;
         if (subtaskText && subtaskText.trim()) {
-          addSubtask(task.id, subtaskText);
+          addSubtask(currentTask.id, subtaskText);
           // 入力欄をクリア
           subtaskInputRef.current.value = '';
         }
@@ -921,7 +1023,7 @@ const TaskManagementApp = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-bold">{task.title}</h2>
+            <h2 className="text-xl font-bold">{currentTask.title}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700"
@@ -935,55 +1037,76 @@ const TaskManagementApp = () => {
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold text-gray-700">プロジェクト</h3>
-              <p className="text-gray-600">{task.project || '未設定'}</p>
+              <p className="text-gray-600">{currentTask.project || '未設定'}</p>
             </div>
 
             <div>
               <h3 className="font-semibold text-gray-700">締め切り</h3>
-              <p className={`text-gray-600 ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
-                {task.dueDate ? formatDate(task.dueDate) : '未設定'}
+              <p className={`text-gray-600 ${getDueDateClassName(currentTask.dueDate, currentTask.status === TASK_STATUS.DONE)}`}>
+                {currentTask.dueDate ? formatDate(currentTask.dueDate) : '未設定'}
               </p>
             </div>
 
             <div>
               <h3 className="font-semibold text-gray-700">状態</h3>
               <p className="text-gray-600">
-                {task.status === TASK_STATUS.TODO ? '未着手' :
-                 task.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
+                {currentTask.status === TASK_STATUS.TODO ? '未着手' :
+                 currentTask.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
               </p>
             </div>
 
             <div>
               <h3 className="font-semibold text-gray-700">作成日</h3>
-              <p className="text-gray-600">{formatDate(task.createdAt)}</p>
+              <p className="text-gray-600">{formatDate(currentTask.createdAt)}</p>
             </div>
 
             {/* サブタスク セクション */}
             <div>
               <h3 className="font-semibold text-gray-700">サブタスク</h3>
               <div className="space-y-2 mt-2">
-                {task.subtasks && task.subtasks.length > 0 ? (
-                  task.subtasks.map(subtask => (
+                {currentTask.subtasks && currentTask.subtasks.length > 0 ? (
+                  currentTask.subtasks.map(subtask => (
                     <div key={subtask.id} className="flex items-center justify-between py-1 border-b">
                       <div className="flex items-center">
                         <input
                           type="checkbox"
                           checked={subtask.completed}
-                          onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                          onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
                           className="mr-2"
                         />
                         <span className={subtask.completed ? 'line-through text-gray-400' : ''}>
                           {subtask.text}
                         </span>
+                        {subtask.dueDate && (
+                          <span className={`text-xs ml-2 ${getDueDateClassName(subtask.dueDate, subtask.completed)}`}>
+                            {formatDate(subtask.dueDate)}
+                          </span>
+                        )}
                       </div>
-                      <button
-                        onClick={() => deleteSubtask(task.id, subtask.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => {
+                            const dueDate = prompt("締め切り日を入力 (yyyy-mm-dd):", subtask.dueDate || "");
+                            if (dueDate !== null) {
+                              updateSubtaskDueDate(currentTask.id, subtask.id, dueDate);
+                            }
+                          }}
+                          className="text-blue-500 hover:text-blue-700 ml-1"
+                          title="締め切り日を設定"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => deleteSubtask(currentTask.id, subtask.id)}
+                          className="text-red-500 hover:text-red-700 ml-1"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -1009,12 +1132,12 @@ const TaskManagementApp = () => {
             <div>
               <h3 className="font-semibold text-gray-700">コメント</h3>
               <div className="space-y-2">
-                {task.comments.map(comment => (
+                {currentTask.comments.map(comment => (
                   <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
                     <div className="flex justify-between items-start">
                       <p className="text-gray-700">{comment.text}</p>
                       <button
-                        onClick={() => onDeleteComment(task.id, comment.id)}
+                        onClick={() => onDeleteComment(currentTask.id, comment.id)}
                         className="text-red-500 hover:text-red-700"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
