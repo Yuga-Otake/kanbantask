@@ -181,6 +181,33 @@ const TaskManagementApp = () => {
     }
   };
 
+  // Enterキーで追加
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      addTask();
+    }
+  };
+
+  // 空のタスクを特定のステータスで追加
+  const addEmptyTask = (status) => {
+    const newTask = {
+      id: Date.now(),
+      title: `新しいタスク ${new Date().toLocaleTimeString()}`,
+      status: status,
+      createdAt: new Date().toISOString(),
+      dueDate: null,
+      project: null,
+      comments: [],
+    };
+    setTasks(prevTasks => [...prevTasks, newTask]);
+    
+    // 追加後すぐに編集モードに
+    setTimeout(() => {
+      startEditing(newTask.id, newTask.title, newTask.dueDate, newTask.project);
+    }, 100);
+  };
+
   // コメント入力の状態を更新
   const handleCommentChange = (taskId, value) => {
     setCommentInputs(prev => ({
@@ -408,7 +435,20 @@ const TaskManagementApp = () => {
         onDragOver={handleDragOver}
         style={{ minHeight: '300px' }}
       >
-        <h2 className="text-lg font-bold mb-3 text-center sticky top-0 bg-gray-100 py-2">{title}</h2>
+        <div className="flex justify-between items-center mb-3 sticky top-0 bg-gray-100 py-2">
+          <h2 className="text-lg font-bold">{title}</h2>
+          {status !== TASK_STATUS.DONE && (
+            <button 
+              className="bg-green-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
+              onClick={() => addEmptyTask(status)}
+              title={`${title}に新しいタスクを追加`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          )}
+        </div>
         
         <div className="space-y-4">
           {/* プロジェクトでグループ化されたタスク */}
@@ -895,6 +935,7 @@ const TaskManagementApp = () => {
             placeholder="新しいタスクを入力..."
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyPress={handleKeyPress}
             style={{ imeMode: 'active' }}
           />
           <button
