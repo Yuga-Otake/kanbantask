@@ -180,6 +180,14 @@ const TaskManagementApp = () => {
       setTasks(prevTasks => [...prevTasks, newTask]);
       setNewTaskTitle('');
       setNewTaskDueDate('');
+      // フォーカスを維持するために少し遅延させる
+      setTimeout(() => {
+        // タスク入力欄にフォーカスを戻す
+        const taskInput = document.querySelector('input[placeholder="新しいタスクを入力..."]');
+        if (taskInput) {
+          taskInput.focus();
+        }
+      }, 10);
     }
   };
 
@@ -221,8 +229,9 @@ const TaskManagementApp = () => {
 
   // コメントを追加
   const addComment = (taskId) => {
-    // refから現在の値を取得（この関数は直接使用されなくなるが互換性のために残す）
-    const commentText = commentInputs[taskId] || '';
+    // refから現在の値を取得
+    const commentInput = document.querySelector(`textarea[placeholder="コメントを入力..."]`);
+    const commentText = commentInput ? commentInput.value : commentInputs[taskId] || '';
     
     if (commentText && commentText.trim()) {
       setTasks(prevTasks =>
@@ -248,6 +257,15 @@ const TaskManagementApp = () => {
         ...prev,
         [taskId]: ''
       }));
+      
+      // 直接DOMを操作してコメント入力欄をクリアしてフォーカスを維持
+      if (commentInput) {
+        commentInput.value = '';
+        // フォーカスを維持
+        setTimeout(() => {
+          commentInput.focus();
+        }, 10);
+      }
     }
   };
 
@@ -1131,6 +1149,12 @@ const TaskManagementApp = () => {
           onAddComment(currentTask.id);
           // フォームをリセット
           commentInputRef.current.value = '';
+          // フォーカスを維持
+          setTimeout(() => {
+            if (commentInputRef.current) {
+              commentInputRef.current.focus();
+            }
+          }, 10);
         }
       }
     };
