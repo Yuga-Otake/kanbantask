@@ -1174,7 +1174,33 @@ const TaskManagementApp = () => {
               ...task,
               subtasks: task.subtasks.map(subtask =>
                 subtask.id === subtaskId
-                  ? { ...subtask, completed: !subtask.completed }
+                  ? { 
+                      ...subtask, 
+                      completed: !subtask.completed,
+                      status: !subtask.completed ? TASK_STATUS.DONE : TASK_STATUS.TODO
+                    }
+                  : subtask
+              ),
+            }
+          : task
+      )
+    );
+  };
+
+  // サブタスクのステータスを更新
+  const updateSubtaskStatus = (taskId, subtaskId, newStatus) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === subtaskId
+                  ? { 
+                      ...subtask, 
+                      status: newStatus,
+                      completed: newStatus === TASK_STATUS.DONE // 完了ステータスの場合はcompletedをtrueに
+                    }
                   : subtask
               ),
             }
