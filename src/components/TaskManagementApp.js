@@ -612,17 +612,7 @@ const TaskManagementApp = () => {
                               <div className="mt-1 space-y-1">
                                 {task.subtasks.map(subtask => (
                                   <div key={subtask.id} className="flex items-center text-sm">
-                                    <input
-                                      type="checkbox"
-                                      checked={subtask.completed}
-                                      onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
-                                      className="mr-1"
-                                    />
-                                    <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                                      {subtask.text}
-                                    </span>
-                                    <div className="flex items-center">
+                                    <div className="flex items-center mr-2">
                                       <button
                                         onClick={() => promoteSubtask(task.id, subtask.id)}
                                         className="text-gray-500 hover:text-gray-700 mr-1"
@@ -635,13 +625,32 @@ const TaskManagementApp = () => {
                                       </button>
                                       <button
                                         onClick={() => demoteSubtask(task.id, subtask.id)}
-                                        className="text-gray-500 hover:text-gray-700 mr-1"
+                                        className="text-gray-500 hover:text-gray-700"
                                         title="レベル下げ"
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                         </svg>
                                       </button>
+                                    </div>
+                                    <input
+                                      type="checkbox"
+                                      checked={subtask.completed}
+                                      onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                      className="mr-1"
+                                    />
+                                    <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
+                                      {subtask.text}
+                                    </span>
+                                    <div className="flex items-center">
+                                      <input
+                                        type="date"
+                                        className="text-xs p-0 border rounded mr-1"
+                                        value={subtask.dueDate || ''}
+                                        onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                                        style={{ width: '110px' }}
+                                      />
                                       <button
                                         onClick={() => deleteSubtask(task.id, subtask.id)}
                                         className="text-red-500 hover:text-red-700 ml-1"
@@ -811,17 +820,7 @@ const TaskManagementApp = () => {
                             <div className="mt-1 space-y-1">
                               {task.subtasks.map(subtask => (
                                 <div key={subtask.id} className="flex items-center text-sm">
-                                  <input
-                                    type="checkbox"
-                                    checked={subtask.completed}
-                                    onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
-                                    className="mr-1"
-                                  />
-                                  <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                    style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                                    {subtask.text}
-                                  </span>
-                                  <div className="flex items-center">
+                                  <div className="flex items-center mr-2">
                                     <button
                                       onClick={() => promoteSubtask(task.id, subtask.id)}
                                       className="text-gray-500 hover:text-gray-700 mr-1"
@@ -834,13 +833,32 @@ const TaskManagementApp = () => {
                                     </button>
                                     <button
                                       onClick={() => demoteSubtask(task.id, subtask.id)}
-                                      className="text-gray-500 hover:text-gray-700 mr-1"
+                                      className="text-gray-500 hover:text-gray-700"
                                       title="レベル下げ"
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                       </svg>
                                     </button>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={subtask.completed}
+                                    onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                    className="mr-1"
+                                  />
+                                  <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                    style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
+                                    {subtask.text}
+                                  </span>
+                                  <div className="flex items-center">
+                                    <input
+                                      type="date"
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.dueDate || ''}
+                                      onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                                      style={{ width: '110px' }}
+                                    />
                                     <button
                                       onClick={() => deleteSubtask(task.id, subtask.id)}
                                       className="text-red-500 hover:text-red-700 ml-1"
@@ -1112,6 +1130,24 @@ const TaskManagementApp = () => {
     );
   };
 
+  // サブタスクの期限日を設定
+  const setSubtaskDueDate = (taskId, subtaskId, dueDate) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === subtaskId
+                  ? { ...subtask, dueDate }
+                  : subtask
+              ),
+            }
+          : task
+      )
+    );
+  };
+
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
     // コメント入力用のrefを作成
@@ -1230,7 +1266,28 @@ const TaskManagementApp = () => {
                 {currentTask.subtasks && currentTask.subtasks.length > 0 ? (
                   currentTask.subtasks.map(subtask => (
                     <div key={subtask.id} className="flex items-center justify-between py-1 border-b">
-                      <div className="flex items-center">
+                      <div className="flex items-center flex-grow">
+                        <div className="flex items-center mr-2">
+                          <button
+                            onClick={() => promoteSubtask(currentTask.id, subtask.id)}
+                            className="text-gray-500 hover:text-gray-700 mr-1"
+                            title="レベル上げ"
+                            disabled={(subtask.level || 0) === 0}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => demoteSubtask(currentTask.id, subtask.id)}
+                            className="text-gray-500 hover:text-gray-700"
+                            title="レベル下げ"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </button>
+                        </div>
                         <input
                           type="checkbox"
                           checked={subtask.completed}
@@ -1243,25 +1300,12 @@ const TaskManagementApp = () => {
                         </span>
                       </div>
                       <div className="flex items-center">
-                        <button
-                          onClick={() => promoteSubtask(currentTask.id, subtask.id)}
-                          className="text-gray-500 hover:text-gray-700 mr-1"
-                          title="レベル上げ"
-                          disabled={(subtask.level || 0) === 0}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => demoteSubtask(currentTask.id, subtask.id)}
-                          className="text-gray-500 hover:text-gray-700 mr-1"
-                          title="レベル下げ"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
+                        <input
+                          type="date"
+                          className="text-sm p-1 border rounded mr-2"
+                          value={subtask.dueDate || ''}
+                          onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
+                        />
                         <button
                           onClick={() => deleteSubtask(currentTask.id, subtask.id)}
                           className="text-red-500 hover:text-red-700 ml-1"
