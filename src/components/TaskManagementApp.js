@@ -147,6 +147,7 @@ const TaskManagementApp = () => {
   const [projectFilter, setProjectFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
+  const taskInputRef = React.useRef(null);
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -168,34 +169,30 @@ const TaskManagementApp = () => {
 
   // 新しいタスクを追加
   const addTask = () => {
-    if (newTaskTitle.trim()) {
-      const newTask = {
-        id: Date.now(),
-        title: newTaskTitle,
-        status: TASK_STATUS.TODO,
-        createdAt: new Date().toISOString(),
-        dueDate: newTaskDueDate || null,
-        project: newTaskProject || null,
-        comments: [], // コメント配列を追加
-        subtasks: [], // サブタスク配列を追加
-      };
-      console.log('Adding new task:', newTask);
-      setTasks(prevTasks => [...prevTasks, newTask]);
-      setNewTaskTitle('');
-      setNewTaskDueDate('');
-      // フォーカスを維持するために少し遅延させる
-      setTimeout(() => {
-        // タスク入力欄にフォーカスを戻す
-        const taskInput = document.querySelector('input[placeholder="新しいタスクを入力..."]');
-        if (taskInput) {
-          taskInput.focus();
-        }
-      }, 10);
+    if (newTaskTitle.trim() === '') return;
+    
+    const newTask = {
+      id: Date.now(),
+      title: newTaskTitle,
+      status: TASK_STATUS.TODO,
+      dueDate: newTaskDueDate || null,
+      project: newTaskProject,
+      createdAt: new Date().toISOString(),
+      comments: [],
+      subtasks: [],
+    };
+    
+    setTasks([...tasks, newTask]);
+    setNewTaskTitle('');
+    
+    // タスク追加後にフォーカスを新しいタスク入力に戻す
+    if (taskInputRef.current) {
+      taskInputRef.current.focus();
     }
   };
 
-  // Enterキーで追加
   const handleKeyPress = (e) => {
+    // Shift + Enter の場合は改行して終了
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       addTask();
@@ -1321,7 +1318,20 @@ const TaskManagementApp = () => {
                   <p className="text-gray-500 italic">サブタスクはありません</p>
                 )}
               </div>
-              <form onSubmit={handleSubtaskSubmit} className="mt-2 flex items-center">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (subtaskInputRef.current && subtaskInputRef.current.value.trim()) {
+                  const inputValue = subtaskInputRef.current.value;
+                  addSubtask(currentTask.id, inputValue);
+                  subtaskInputRef.current.value = '';
+                  // フォーカスを維持するために少し遅延させる
+                  setTimeout(() => {
+                    if (subtaskInputRef.current) {
+                      subtaskInputRef.current.focus();
+                    }
+                  }, 10);
+                }
+              }} className="mt-2 flex items-center">
                 <input
                   type="text"
                   ref={subtaskInputRef}
@@ -1394,6 +1404,7 @@ const TaskManagementApp = () => {
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyPress={handleKeyPress}
             style={{ imeMode: 'active' }}
+            ref={taskInputRef}
           />
           <button
             className="bg-blue-500 text-white p-2 rounded-r"
