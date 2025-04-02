@@ -125,7 +125,10 @@ const TaskManagementApp = () => {
       return parsedTasks.map(task => ({
         ...task,
         comments: task.comments || [],
-        subtasks: task.subtasks || []
+        subtasks: task.subtasks ? task.subtasks.map(subtask => ({
+          ...subtask,
+          level: subtask.level || 0
+        })) : []
       }));
     }
     return [];
@@ -615,55 +618,37 @@ const TaskManagementApp = () => {
                                       onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
                                       className="mr-1"
                                     />
-                                    <span className={subtask.completed ? 'line-through text-gray-400' : ''}>
+                                    <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
                                       {subtask.text}
                                     </span>
-                                    <button
-                                      onClick={() => deleteSubtask(task.id, subtask.id)}
-                                      className="text-red-500 hover:text-red-700 ml-1"
-                                      title="削除"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
-                                    <div className="flex items-center ml-1">
+                                    <div className="flex items-center">
                                       <button
-                                        onClick={() => {
-                                          if (subtask.dueDate) {
-                                            const currentDate = new Date(subtask.dueDate);
-                                            currentDate.setDate(currentDate.getDate() - 1);
-                                            updateSubtaskDueDate(task.id, subtask.id, currentDate.toISOString().split('T')[0]);
-                                          }
-                                        }}
-                                        className="text-gray-500 hover:text-gray-700"
-                                        title="1日前"
-                                        disabled={!subtask.dueDate}
+                                        onClick={() => promoteSubtask(task.id, subtask.id)}
+                                        className="text-gray-500 hover:text-gray-700 mr-1"
+                                        title="レベル上げ"
+                                        disabled={(subtask.level || 0) === 0}
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => demoteSubtask(task.id, subtask.id)}
+                                        className="text-gray-500 hover:text-gray-700 mr-1"
+                                        title="レベル下げ"
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                         </svg>
                                       </button>
-                                      <input
-                                        type="date"
-                                        value={subtask.dueDate || ''}
-                                        onChange={(e) => updateSubtaskDueDate(task.id, subtask.id, e.target.value)}
-                                        className="mx-1 p-0 w-28 text-xs"
-                                      />
                                       <button
-                                        onClick={() => {
-                                          if (subtask.dueDate) {
-                                            const currentDate = new Date(subtask.dueDate);
-                                            currentDate.setDate(currentDate.getDate() + 1);
-                                            updateSubtaskDueDate(task.id, subtask.id, currentDate.toISOString().split('T')[0]);
-                                          }
-                                        }}
-                                        className="text-gray-500 hover:text-gray-700"
-                                        title="1日後"
-                                        disabled={!subtask.dueDate}
+                                        onClick={() => deleteSubtask(task.id, subtask.id)}
+                                        className="text-red-500 hover:text-red-700 ml-1"
+                                        title="削除"
                                       >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                       </button>
                                     </div>
@@ -832,55 +817,37 @@ const TaskManagementApp = () => {
                                     onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
                                     className="mr-1"
                                   />
-                                  <span className={subtask.completed ? 'line-through text-gray-400' : ''}>
+                                  <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                    style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
                                     {subtask.text}
                                   </span>
-                                  <button
-                                    onClick={() => deleteSubtask(task.id, subtask.id)}
-                                    className="text-red-500 hover:text-red-700 ml-1"
-                                    title="削除"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
-                                  <div className="flex items-center ml-1">
+                                  <div className="flex items-center">
                                     <button
-                                      onClick={() => {
-                                        if (subtask.dueDate) {
-                                          const currentDate = new Date(subtask.dueDate);
-                                          currentDate.setDate(currentDate.getDate() - 1);
-                                          updateSubtaskDueDate(task.id, subtask.id, currentDate.toISOString().split('T')[0]);
-                                        }
-                                      }}
-                                      className="text-gray-500 hover:text-gray-700"
-                                      title="1日前"
-                                      disabled={!subtask.dueDate}
+                                      onClick={() => promoteSubtask(task.id, subtask.id)}
+                                      className="text-gray-500 hover:text-gray-700 mr-1"
+                                      title="レベル上げ"
+                                      disabled={(subtask.level || 0) === 0}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => demoteSubtask(task.id, subtask.id)}
+                                      className="text-gray-500 hover:text-gray-700 mr-1"
+                                      title="レベル下げ"
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                       </svg>
                                     </button>
-                                    <input
-                                      type="date"
-                                      value={subtask.dueDate || ''}
-                                      onChange={(e) => updateSubtaskDueDate(task.id, subtask.id, e.target.value)}
-                                      className="mx-1 p-0 w-28 text-xs"
-                                    />
                                     <button
-                                      onClick={() => {
-                                        if (subtask.dueDate) {
-                                          const currentDate = new Date(subtask.dueDate);
-                                          currentDate.setDate(currentDate.getDate() + 1);
-                                          updateSubtaskDueDate(task.id, subtask.id, currentDate.toISOString().split('T')[0]);
-                                        }
-                                      }}
-                                      className="text-gray-500 hover:text-gray-700"
-                                      title="1日後"
-                                      disabled={!subtask.dueDate}
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-1"
+                                      title="削除"
                                     >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                       </svg>
                                     </button>
                                   </div>
@@ -1067,6 +1034,7 @@ const TaskManagementApp = () => {
                     completed: false,
                     createdAt: new Date().toISOString(),
                     dueDate: null,
+                    level: 0, // デフォルトのレベルは0（最上位）
                   },
                 ],
               }
@@ -1076,8 +1044,8 @@ const TaskManagementApp = () => {
     }
   };
   
-  // サブタスクの締め切り日を更新
-  const updateSubtaskDueDate = (taskId, subtaskId, dueDate) => {
+  // サブタスクのレベルを上げる（インデントを減らす）
+  const promoteSubtask = (taskId, subtaskId) => {
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
@@ -1085,7 +1053,25 @@ const TaskManagementApp = () => {
               ...task,
               subtasks: task.subtasks.map(subtask =>
                 subtask.id === subtaskId
-                  ? { ...subtask, dueDate: dueDate || null }
+                  ? { ...subtask, level: Math.max(0, (subtask.level || 0) - 1) }
+                  : subtask
+              ),
+            }
+          : task
+      )
+    );
+  };
+  
+  // サブタスクのレベルを下げる（インデントを増やす）
+  const demoteSubtask = (taskId, subtaskId) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === subtaskId
+                  ? { ...subtask, level: (subtask.level || 0) + 1 }
                   : subtask
               ),
             }
@@ -1251,11 +1237,31 @@ const TaskManagementApp = () => {
                           onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
                           className="mr-2"
                         />
-                        <span className={subtask.completed ? 'line-through text-gray-400' : ''}>
+                        <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                          style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
                           {subtask.text}
                         </span>
                       </div>
                       <div className="flex items-center">
+                        <button
+                          onClick={() => promoteSubtask(currentTask.id, subtask.id)}
+                          className="text-gray-500 hover:text-gray-700 mr-1"
+                          title="レベル上げ"
+                          disabled={(subtask.level || 0) === 0}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => demoteSubtask(currentTask.id, subtask.id)}
+                          className="text-gray-500 hover:text-gray-700 mr-1"
+                          title="レベル下げ"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
                         <button
                           onClick={() => deleteSubtask(currentTask.id, subtask.id)}
                           className="text-red-500 hover:text-red-700 ml-1"
@@ -1264,46 +1270,6 @@ const TaskManagementApp = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
-                        <div className="flex items-center ml-1">
-                          <button
-                            onClick={() => {
-                              if (subtask.dueDate) {
-                                const currentDate = new Date(subtask.dueDate);
-                                currentDate.setDate(currentDate.getDate() - 1);
-                                updateSubtaskDueDate(currentTask.id, subtask.id, currentDate.toISOString().split('T')[0]);
-                              }
-                            }}
-                            className="text-gray-500 hover:text-gray-700"
-                            title="1日前"
-                            disabled={!subtask.dueDate}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-                          <input
-                            type="date"
-                            value={subtask.dueDate || ''}
-                            onChange={(e) => updateSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            className="mx-1 p-0 w-28 text-xs"
-                          />
-                          <button
-                            onClick={() => {
-                              if (subtask.dueDate) {
-                                const currentDate = new Date(subtask.dueDate);
-                                currentDate.setDate(currentDate.getDate() + 1);
-                                updateSubtaskDueDate(currentTask.id, subtask.id, currentDate.toISOString().split('T')[0]);
-                              }
-                            }}
-                            className="text-gray-500 hover:text-gray-700"
-                            title="1日後"
-                            disabled={!subtask.dueDate}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </div>
                       </div>
                     </div>
                   ))
