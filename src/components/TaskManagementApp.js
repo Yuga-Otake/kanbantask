@@ -143,6 +143,7 @@ const TaskManagementApp = () => {
   const [projectFilter, setProjectFilter] = useState('all');
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
+  const commentInputRefs = React.useRef({});
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -191,7 +192,10 @@ const TaskManagementApp = () => {
 
   // コメントを追加
   const addComment = (taskId) => {
-    const commentText = commentInputs[taskId];
+    // refから現在の値を取得
+    const commentInputRef = commentInputRefs.current[taskId];
+    const commentText = commentInputRef ? commentInputRef.value : (commentInputs[taskId] || '');
+    
     if (commentText && commentText.trim()) {
       setTasks(prevTasks =>
         prevTasks.map(task =>
@@ -210,7 +214,11 @@ const TaskManagementApp = () => {
             : task
         )
       );
+      
       // コメント入力欄をクリア
+      if (commentInputRef) {
+        commentInputRef.value = '';
+      }
       setCommentInputs(prev => ({
         ...prev,
         [taskId]: ''
@@ -772,6 +780,14 @@ const TaskManagementApp = () => {
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
     if (!task) return null;
+    
+    // コメント入力用refを設定
+    React.useEffect(() => {
+      if (task) {
+        // refオブジェクトが初期化されていることを確認
+        commentInputRefs.current[task.id] = commentInputRefs.current[task.id] || null;
+      }
+    }, [task]);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -834,21 +850,21 @@ const TaskManagementApp = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-4">
+              <form onSubmit={(e) => { e.preventDefault(); onAddComment(task.id); }} className="mt-4">
                 <textarea
-                  value={commentInputs[task.id] || ''}
-                  onChange={(e) => handleCommentChange(task.id, e.target.value)}
+                  defaultValue={commentInputs[task.id] || ''}
+                  ref={(el) => commentInputRefs.current[task.id] = el}
                   placeholder="コメントを入力..."
                   className="w-full p-2 border rounded-lg"
                   rows="3"
                 />
                 <button
-                  onClick={() => onAddComment(task.id)}
+                  type="submit"
                   className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 >
                   コメントを追加
                 </button>
-              </div>
+              </form>
             </div>
           </div>
         </div>
