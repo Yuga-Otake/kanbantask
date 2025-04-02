@@ -269,6 +269,21 @@ const TaskManagementApp = () => {
     setEditingId(null);
   };
 
+  // 編集テキストの更新
+  const handleEditTextChange = (e) => {
+    setEditText(e.target.value);
+  };
+
+  // 編集プロジェクトの更新
+  const handleEditProjectChange = (e) => {
+    setEditProject(e.target.value);
+  };
+
+  // 編集締め切り日の更新
+  const handleEditDueDateChange = (e) => {
+    setEditDueDate(e.target.value);
+  };
+
   // ドラッグ開始ハンドラー
   const handleDragStart = (taskId, e) => {
     setDraggedTask(taskId);
@@ -418,7 +433,7 @@ const TaskManagementApp = () => {
                             type="text"
                             className="flex-grow p-1 border rounded-l"
                             value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
+                            onChange={handleEditTextChange}
                             autoFocus
                             style={{ imeMode: 'active' }}
                           />
@@ -435,7 +450,7 @@ const TaskManagementApp = () => {
                             type="date"
                             className="flex-grow p-1 border rounded"
                             value={editDueDate}
-                            onChange={(e) => setEditDueDate(e.target.value)}
+                            onChange={handleEditDueDateChange}
                           />
                         </div>
                         <div className="flex">
@@ -445,7 +460,7 @@ const TaskManagementApp = () => {
                             className="flex-grow p-1 border rounded"
                             list="edit-project-list"
                             value={editProject}
-                            onChange={(e) => setEditProject(e.target.value)}
+                            onChange={handleEditProjectChange}
                             style={{ imeMode: 'active' }}
                           />
                           <datalist id="edit-project-list">
@@ -536,7 +551,7 @@ const TaskManagementApp = () => {
                           type="text"
                           className="flex-grow p-1 border rounded-l"
                           value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
+                          onChange={handleEditTextChange}
                           autoFocus
                           style={{ imeMode: 'active' }}
                         />
@@ -553,7 +568,7 @@ const TaskManagementApp = () => {
                           type="date"
                           className="flex-grow p-1 border rounded"
                           value={editDueDate}
-                          onChange={(e) => setEditDueDate(e.target.value)}
+                          onChange={handleEditDueDateChange}
                         />
                       </div>
                       <div className="flex">
@@ -563,7 +578,7 @@ const TaskManagementApp = () => {
                           className="flex-grow p-1 border rounded"
                           list="edit-project-list"
                           value={editProject}
-                          onChange={(e) => setEditProject(e.target.value)}
+                          onChange={handleEditProjectChange}
                           style={{ imeMode: 'active' }}
                         />
                         <datalist id="edit-project-list">
