@@ -783,10 +783,8 @@ const TaskManagementApp = () => {
     
     // コメント入力用refを設定
     React.useEffect(() => {
-      if (task) {
-        // refオブジェクトが初期化されていることを確認
-        commentInputRefs.current[task.id] = commentInputRefs.current[task.id] || null;
-      }
+      // refオブジェクトが初期化されていることを確認
+      commentInputRefs.current[task.id] = commentInputRefs.current[task.id] || null;
     }, [task]);
 
     return (
