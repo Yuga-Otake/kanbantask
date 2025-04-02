@@ -420,6 +420,7 @@ const TaskManagementApp = () => {
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
                             autoFocus
+                            style={{ imeMode: 'active' }}
                           />
                           <button
                             className="bg-green-500 text-white p-1 px-2 rounded-r"
@@ -445,6 +446,7 @@ const TaskManagementApp = () => {
                             list="edit-project-list"
                             value={editProject}
                             onChange={(e) => setEditProject(e.target.value)}
+                            style={{ imeMode: 'active' }}
                           />
                           <datalist id="edit-project-list">
                             {getProjects().map(project => (
@@ -536,6 +538,7 @@ const TaskManagementApp = () => {
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
                           autoFocus
+                          style={{ imeMode: 'active' }}
                         />
                         <button
                           className="bg-green-500 text-white p-1 px-2 rounded-r"
@@ -561,6 +564,7 @@ const TaskManagementApp = () => {
                           list="edit-project-list"
                           value={editProject}
                           onChange={(e) => setEditProject(e.target.value)}
+                          style={{ imeMode: 'active' }}
                         />
                         <datalist id="edit-project-list">
                           {getProjects().map(project => (
@@ -854,6 +858,7 @@ const TaskManagementApp = () => {
             placeholder="新しいタスクを入力..."
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
+            style={{ imeMode: 'active' }}
           />
           <button
             className="bg-blue-500 text-white p-2 rounded-r"
@@ -882,6 +887,7 @@ const TaskManagementApp = () => {
                 list="project-list"
                 value={newTaskProject}
                 onChange={(e) => setNewTaskProject(e.target.value)}
+                style={{ imeMode: 'active' }}
               />
               <button
                 className="bg-gray-200 p-2 rounded-r text-gray-700"
