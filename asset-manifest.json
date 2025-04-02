@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/kanbantask/static/css/main.5c8cdb88.css",
-    "main.js": "/kanbantask/static/js/main.ac764510.js",
+    "main.css": "/kanbantask/static/css/main.43b34f7c.css",
+    "main.js": "/kanbantask/static/js/main.e1b6874b.js",
     "index.html": "/kanbantask/index.html",
-    "main.5c8cdb88.css.map": "/kanbantask/static/css/main.5c8cdb88.css.map",
-    "main.ac764510.js.map": "/kanbantask/static/js/main.ac764510.js.map"
+    "main.43b34f7c.css.map": "/kanbantask/static/css/main.43b34f7c.css.map",
+    "main.e1b6874b.js.map": "/kanbantask/static/js/main.e1b6874b.js.map"
   },
   "entrypoints": [
-    "static/css/main.5c8cdb88.css",
-    "static/js/main.ac764510.js"
+    "static/css/main.43b34f7c.css",
+    "static/js/main.e1b6874b.js"
   ]
 }
