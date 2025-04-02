@@ -726,6 +726,80 @@ const TaskManagementApp = () => {
                               期限: {formatDate(task.dueDate)}
                             </span>
                           )}
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <span 
+                              className="text-xs bg-gray-200 px-1 rounded cursor-pointer hover:bg-gray-300"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTask(task);
+                              }}
+                            >
+                              サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* サブタスクの追加フォーム */}
+                        <div className="mt-2 border-t pt-2">
+                          <div className="flex">
+                            <input
+                              type="text"
+                              placeholder="+ サブタスクを追加"
+                              className="text-sm w-full py-1 px-2 border rounded"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && e.target.value.trim()) {
+                                  addSubtask(task.id, e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                          </div>
+                          
+                          {/* サブタスクのリスト表示 */}
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <div className="mt-1 space-y-1">
+                              {task.subtasks.map(subtask => (
+                                <div key={subtask.id} className="flex items-center text-sm">
+                                  <input
+                                    type="checkbox"
+                                    checked={subtask.completed}
+                                    onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                    className="mr-1"
+                                  />
+                                  <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`}>
+                                    {subtask.text}
+                                  </span>
+                                  <button
+                                    onClick={() => deleteSubtask(task.id, subtask.id)}
+                                    className="text-red-500 hover:text-red-700 ml-1"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                  {subtask.dueDate && (
+                                    <span className={`text-xs ml-1 ${getDueDateClassName(subtask.dueDate, subtask.completed)}`}>
+                                      {formatDate(subtask.dueDate)}
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      const dueDate = prompt("締め切り日を入力 (yyyy-mm-dd):", subtask.dueDate || "");
+                                      if (dueDate !== null) {
+                                        updateSubtaskDueDate(task.id, subtask.id, dueDate);
+                                      }
+                                    }}
+                                    className="text-blue-500 hover:text-blue-700 ml-1"
+                                    title="締め切り日を設定"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-col space-y-1">
