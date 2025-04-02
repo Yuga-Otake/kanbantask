@@ -847,7 +847,7 @@ const TaskManagementApp = () => {
   return (
     <div className="w-screen min-h-screen p-4 bg-white rounded-lg shadow-lg max-w-none">
       <style>{customStyles}</style>
-      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理</h1>
+      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理 v1.0.1</h1>
       
       {/* 新しいタスク入力フォーム */}
       <div className="mb-4">
