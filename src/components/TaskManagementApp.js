@@ -478,17 +478,29 @@ const TaskManagementApp = () => {
     // 同じステータスのタスクのみを抽出
     const statusTasks = tasks.filter(task => task.status === status);
     
+    if (startIndex < 0 || startIndex >= statusTasks.length || 
+        endIndex < 0 || endIndex >= statusTasks.length) {
+      console.error("無効なインデックス:", startIndex, endIndex, statusTasks.length);
+      return;
+    }
+    
     // 移動するタスクを特定
     const taskToMove = statusTasks[startIndex];
     
     // 新しい配列を作成（移動元を削除）
-    const newStatusTasks = statusTasks.filter((_, index) => index !== startIndex);
+    const newStatusTasks = [...statusTasks];
+    newStatusTasks.splice(startIndex, 1);
     
     // 移動先に挿入
     newStatusTasks.splice(endIndex, 0, taskToMove);
     
     // 他のステータスのタスクと結合して更新
     const otherTasks = tasks.filter(task => task.status !== status);
+    
+    console.log("並び替え:", status, startIndex, endIndex, 
+                "移動前:", statusTasks.map(t => t.id),
+                "移動後:", newStatusTasks.map(t => t.id));
+    
     setTasks([...otherTasks, ...newStatusTasks]);
   };
 
@@ -511,9 +523,13 @@ const TaskManagementApp = () => {
       e.preventDefault();
       setIsDragOver(false);
       
-      if (draggedTask !== null) {
-        // ドロップ先のステータスに更新
-        updateTaskStatus(draggedTask, status);
+      // カラムエリアへのドロップ（タスクステータス変更）
+      if (draggedTask !== null && !dragOverTaskId) {
+        const task = tasks.find(t => t.id === draggedTask);
+        if (task && task.status !== status) {
+          // ステータス変更のみ
+          updateTaskStatus(draggedTask, status);
+        }
       }
       
       // ドラッグ状態をリセット
@@ -550,9 +566,11 @@ const TaskManagementApp = () => {
 
     // タスクカードのドラッグオーバースタイル
     const getTaskCardClasses = (taskId) => {
-      return `bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200 ${
-        dragOverTaskId === taskId ? 'border-2 border-blue-500 transform translate-y-1' : ''
-      }`;
+      return `bg-white p-3 rounded-lg shadow-lg cursor-move task-card ${
+        dragOverTaskId === taskId 
+        ? 'border-2 border-blue-500 transform translate-y-1' 
+        : 'hover:shadow-xl'
+      } transition-all duration-200`;
     };
 
     // タスクのドラッグイベントハンドラ
@@ -562,7 +580,9 @@ const TaskManagementApp = () => {
       setDragOverTaskId(taskId);
     };
 
-    const handleTaskDragLeave = () => {
+    const handleTaskDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       setDragOverTaskId(null);
     };
 
@@ -571,17 +591,255 @@ const TaskManagementApp = () => {
       e.stopPropagation();
       
       if (draggedTask && draggedTask !== taskId) {
-        const statusTasks = tasks.filter(t => t.status === status);
-        const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask);
-        const dropIndex = statusTasks.findIndex(t => t.id === taskId);
+        const sourceTask = tasks.find(t => t.id === draggedTask);
+        const targetTask = tasks.find(t => t.id === taskId);
         
-        if (draggedIndex !== -1 && dropIndex !== -1) {
-          reorderTasks(status, draggedIndex, dropIndex);
+        if (sourceTask && targetTask) {
+          // 同じステータスのタスク間での並び替え
+          if (sourceTask.status === targetTask.status) {
+            const statusTasks = tasks.filter(t => t.status === status);
+            const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask);
+            const dropIndex = statusTasks.findIndex(t => t.id === taskId);
+            
+            console.log("タスク並び替え:", draggedTask, "→", taskId, "インデックス:", draggedIndex, "→", dropIndex);
+            
+            if (draggedIndex !== -1 && dropIndex !== -1) {
+              reorderTasks(status, draggedIndex, dropIndex);
+            }
+          } 
+          // 異なるステータス間でのドロップ（ステータス変更）
+          else {
+            console.log("ステータス変更:", draggedTask, "→", status);
+            updateTaskStatus(draggedTask, status);
+          }
         }
       }
       
       setDragOverTaskId(null);
       setDraggedTask(null);
+    };
+
+    // タスクカードコンポーネント（列内に表示）
+    const renderTaskCard = (task) => {
+      return (
+        <div 
+          key={task.id}
+          draggable="true"
+          onDragStart={(e) => handleDragStart(task.id, e)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => handleTaskDragOver(e, task.id)}
+          onDragLeave={handleTaskDragLeave}
+          onDrop={(e) => handleTaskDrop(e, task.id)}
+          className={getTaskCardClasses(task.id)}
+        >
+          {editingId === task.id ? (
+            // 編集モード（既存コードをそのまま使用）
+            <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
+              {/* 既存の編集フォーム */}
+              <div className="flex mb-2">
+                <input
+                  type="text"
+                  className="flex-grow p-1 border rounded-l"
+                  defaultValue={editText}
+                  ref={editTextRef}
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="bg-green-500 text-white p-1 px-2 rounded-r"
+                >
+                  保存
+                </button>
+              </div>
+              <div className="flex mb-2">
+                <label className="text-sm text-gray-600 mr-2 w-20">締め切り：</label>
+                <input
+                  type="date"
+                  className="flex-grow p-1 border rounded"
+                  value={editDueDate}
+                  onChange={handleEditDueDateChange}
+                />
+              </div>
+              <div className="flex">
+                <label className="text-sm text-gray-600 mr-2 w-20">プロジェクト：</label>
+                <input
+                  type="text"
+                  className="flex-grow p-1 border rounded"
+                  list="edit-project-list"
+                  defaultValue={editProject}
+                  ref={editProjectRef}
+                />
+                <datalist id="edit-project-list">
+                  {getProjects().map(project => (
+                    <option key={project} value={project} />
+                  ))}
+                </datalist>
+              </div>
+            </form>
+          ) : (
+            // 表示モード（既存コードをそのまま使用）
+            <div className="flex items-start">
+              <input
+                type="checkbox"
+                checked={task.status === TASK_STATUS.DONE}
+                onChange={() => updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE)}
+                className="mr-2 mt-1"
+              />
+              <div className="flex-grow flex flex-col">
+                <span
+                  className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
+                  onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                >
+                  {task.title}
+                </span>
+                <div className="flex flex-nowrap items-center gap-2 mt-1">
+                  {task.dueDate && (
+                    <span className={`text-xs ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
+                      期限: {formatDate(task.dueDate)}
+                    </span>
+                  )}
+                  {task.subtasks && task.subtasks.length > 0 && (
+                    <span 
+                      className="text-xs bg-gray-200 px-1 rounded cursor-pointer hover:bg-gray-300"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTask(task);
+                      }}
+                    >
+                      サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                      <span className="ml-1 text-blue-500">{task.subtasks.filter(st => st.status === TASK_STATUS.IN_PROGRESS).length > 0 ? '(進行中あり)' : ''}</span>
+                    </span>
+                  )}
+                </div>
+                
+                {/* サブタスクの追加フォーム */}
+                <div className="mt-2 border-t pt-2">
+                  <div className="flex">
+                    <input
+                      type="text"
+                      placeholder="+ サブタスクを追加"
+                      className="text-sm w-full py-1 px-2 border rounded"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                          const inputValue = e.target.value;
+                          addSubtask(task.id, inputValue);
+                          e.target.value = '';
+                          // フォーカスを確実に維持するために少し遅延させる
+                          setTimeout(() => {
+                            e.target.focus();
+                          }, 10);
+                          e.preventDefault(); // フォームのデフォルト送信を防止
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {/* サブタスクのリスト表示 - 現在のカラムに対応するステータスのサブタスクだけを表示 */}
+                  {task.subtasks && getFilteredSubtasks(task, status).length > 0 && (
+                    <div className="mt-1 space-y-1">
+                      {getFilteredSubtasks(task, status).map(subtask => (
+                        <div key={subtask.id} className="flex items-center text-sm">
+                          <div className="flex items-center mr-2">
+                            <button
+                              onClick={() => promoteSubtask(task.id, subtask.id)}
+                              className="text-gray-500 hover:text-gray-700 mr-1"
+                              title="レベル上げ"
+                              disabled={(subtask.level || 0) === 0}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => demoteSubtask(task.id, subtask.id)}
+                              className="text-gray-500 hover:text-gray-700"
+                              title="レベル下げ"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={subtask.completed}
+                            onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                            className="mr-1"
+                          />
+                          <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                            style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
+                            {subtask.text}
+                          </span>
+                          <div className="flex items-center">
+                            <select
+                              className="text-xs p-0 border rounded mr-1"
+                              value={subtask.status || TASK_STATUS.TODO}
+                              onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
+                              style={{ maxWidth: '80px' }}
+                            >
+                              <option value={TASK_STATUS.TODO}>未着手</option>
+                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                              <option value={TASK_STATUS.DONE}>完了</option>
+                            </select>
+                            <input
+                              type="date"
+                              className="text-xs p-0 border rounded mr-1"
+                              value={subtask.dueDate || ''}
+                              onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                              style={{ width: '110px' }}
+                            />
+                            <button
+                              onClick={() => deleteSubtask(task.id, subtask.id)}
+                              className="text-red-500 hover:text-red-700 ml-1"
+                              title="削除"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <button
+                  className="text-sm text-blue-500 hover:text-blue-700"
+                  onClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                >
+                  編集
+                </button>
+                <button
+                  className="text-sm text-green-500 hover:text-green-700"
+                  onClick={() => setSelectedTask(task)}
+                >
+                  詳細
+                </button>
+                <button
+                  className="text-sm text-red-500 hover:text-red-700"
+                  onClick={() => deleteTask(task.id)}
+                >
+                  削除
+                </button>
+                {task.dueDate && (
+                  <button
+                    className="text-xs text-purple-500 hover:text-purple-700 flex items-center px-2 py-1 rounded border border-purple-200 hover:bg-purple-50"
+                    onClick={() => generateICSFile(task)}
+                    title="Outlookカレンダーに追加"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>予定追加</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
     };
 
     return (
@@ -624,7 +882,7 @@ const TaskManagementApp = () => {
                 {groupedTasks[projectName].map(task => (
                   <div 
                     key={task.id}
-                    draggable
+                    draggable="true"
                     onDragStart={(e) => handleDragStart(task.id, e)}
                     onDragEnd={handleDragEnd}
                     onDragOver={(e) => handleTaskDragOver(e, task.id)}
@@ -633,7 +891,9 @@ const TaskManagementApp = () => {
                     className={getTaskCardClasses(task.id)}
                   >
                     {editingId === task.id ? (
+                      // 編集モード（既存コードをそのまま使用）
                       <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
+                        {/* 既存の編集フォーム */}
                         <div className="flex mb-2">
                           <input
                             type="text"
@@ -675,6 +935,7 @@ const TaskManagementApp = () => {
                         </div>
                       </form>
                     ) : (
+                      // 表示モード（既存コードをそのまま使用）
                       <div className="flex items-start">
                         <input
                           type="checkbox"
@@ -847,7 +1108,7 @@ const TaskManagementApp = () => {
               {noProjectTasks.map(task => (
                 <div 
                   key={task.id}
-                  draggable
+                  draggable="true"
                   onDragStart={(e) => handleDragStart(task.id, e)}
                   onDragEnd={handleDragEnd}
                   onDragOver={(e) => handleTaskDragOver(e, task.id)}
@@ -856,7 +1117,9 @@ const TaskManagementApp = () => {
                   className={getTaskCardClasses(task.id)}
                 >
                   {editingId === task.id ? (
+                    // プロジェクトなしタスクの内容（既存コードと同様）
                     <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
+                      {/* 既存の編集フォーム */}
                       <div className="flex mb-2">
                         <input
                           type="text"
@@ -898,6 +1161,7 @@ const TaskManagementApp = () => {
                       </div>
                     </form>
                   ) : (
+                    // 表示モード（既存コードをそのまま使用）
                     <div className="flex items-start">
                       <input
                         type="checkbox"
@@ -1296,424 +1560,428 @@ const TaskManagementApp = () => {
     );
   };
 
-  // 詳細モーダルコンポーネント
-  const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
-    // コメント入力用のrefを作成
-    const commentInputRef = React.useRef(null);
-    // サブタスク入力用のrefを作成
-    const subtaskInputRef = React.useRef(null);
+  // タスク詳細モーダル
+  const TaskDetailModal = ({ task, onClose }) => {
+    const [newComment, setNewComment] = useState('');
+    const [commentText, setCommentText] = useState('');
+    const [newSubtask, setNewSubtask] = useState('');
+    const [localSubtasks, setLocalSubtasks] = useState(task.subtasks || []);
     
-    // 現在のタスク情報を取得するための状態変数
-    const [currentTask, setCurrentTask] = useState(task);
-    
-    // タスクが変更された場合に更新
     useEffect(() => {
-      if (task) {
-        // tasksステート配列から最新のタスク情報を取得
-        const updatedTask = tasks.find(t => t.id === task.id);
-        if (updatedTask) {
-          setCurrentTask(updatedTask);
-        }
-      }
-    }, [task, tasks]);
+      // タスクが変更された場合、ローカルのサブタスクを更新
+      setLocalSubtasks(sortSubtasksByDueDate(task.subtasks || []));
+    }, [task]);
     
-    // フックは条件付きで呼び出さないようにする
-    React.useEffect(() => {
-      if (currentTask && commentInputRef.current) {
-        // 初期値を設定
-        commentInputRef.current.value = commentInputs[currentTask.id] || '';
-      }
-    }, [currentTask, commentInputs]);
+    // サブタスクを締め切り日で並べ替え
+    const getSortedSubtasks = (statusFilter = null) => {
+      const filteredSubtasks = statusFilter 
+        ? localSubtasks.filter(st => st.status === statusFilter)
+        : localSubtasks;
+      
+      return sortSubtasksByDueDate(filteredSubtasks);
+    };
     
-    if (!currentTask) return null;
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (commentInputRef.current) {
-        const commentText = commentInputRef.current.value;
-        if (commentText && commentText.trim()) {
-          // コメントを追加
-          onAddComment(currentTask.id);
-          
-          // フォームをリセット
-          commentInputRef.current.value = '';
-          
-          // フォーカスを維持
-          setTimeout(() => {
-            if (commentInputRef.current) {
-              commentInputRef.current.focus();
-            }
-          }, 10);
-        }
+    // サブタスクをステータスでグループ化
+    const getGroupedSubtasks = () => {
+      return {
+        [TASK_STATUS.TODO]: getSortedSubtasks(TASK_STATUS.TODO),
+        [TASK_STATUS.IN_PROGRESS]: getSortedSubtasks(TASK_STATUS.IN_PROGRESS),
+        [TASK_STATUS.DONE]: getSortedSubtasks(TASK_STATUS.DONE)
+      };
+    };
+    
+    const handleAddSubtask = () => {
+      if (newSubtask.trim() !== '') {
+        const newSubtaskObj = {
+          id: Date.now().toString(),
+          text: newSubtask,
+          completed: false,
+          status: TASK_STATUS.TODO,
+          level: 0
+        };
+        
+        const updatedSubtasks = [...localSubtasks, newSubtaskObj];
+        setLocalSubtasks(sortSubtasksByDueDate(updatedSubtasks));
+        addSubtask(task.id, newSubtask);
+        setNewSubtask('');
       }
     };
-
-    const handleSubtaskSubmit = (e) => {
-      e.preventDefault();
-      if (subtaskInputRef.current) {
-        const subtaskText = subtaskInputRef.current.value;
-        if (subtaskText && subtaskText.trim()) {
-          addSubtask(currentTask.id, subtaskText);
-          // 入力欄をクリア
-          subtaskInputRef.current.value = '';
-          // フォーカスを維持
-          setTimeout(() => {
-            if (subtaskInputRef.current) {
-              subtaskInputRef.current.focus();
-            }
-          }, 10);
+    
+    const handleToggleSubtask = (subtaskId) => {
+      const updatedSubtasks = localSubtasks.map(st => {
+        if (st.id === subtaskId) {
+          const newCompleted = !st.completed;
+          const newStatus = newCompleted ? TASK_STATUS.DONE : TASK_STATUS.TODO;
+          return { ...st, completed: newCompleted, status: newStatus };
         }
+        return st;
+      });
+      
+      setLocalSubtasks(sortSubtasksByDueDate(updatedSubtasks));
+      toggleSubtaskCompletion(task.id, subtaskId);
+    };
+    
+    const handleUpdateSubtaskStatus = (subtaskId, newStatus) => {
+      const updatedSubtasks = localSubtasks.map(st => {
+        if (st.id === subtaskId) {
+          // 完了ステータスの場合、completedも連動して更新
+          const newCompleted = newStatus === TASK_STATUS.DONE;
+          return { ...st, status: newStatus, completed: newCompleted };
+        }
+        return st;
+      });
+      
+      setLocalSubtasks(sortSubtasksByDueDate(updatedSubtasks));
+      updateSubtaskStatus(task.id, subtaskId, newStatus);
+    };
+    
+    const handleSetSubtaskDueDate = (subtaskId, dueDate) => {
+      const updatedSubtasks = localSubtasks.map(st => {
+        if (st.id === subtaskId) {
+          return { ...st, dueDate };
+        }
+        return st;
+      });
+      
+      setLocalSubtasks(sortSubtasksByDueDate(updatedSubtasks));
+      setSubtaskDueDate(task.id, subtaskId, dueDate);
+    };
+    
+    // コメント関連の機能
+    const handleAddComment = (e) => {
+      e.preventDefault();
+      if (commentText.trim() !== '') {
+        addCommentToTask(task.id, commentText);
+        setCommentText('');
       }
     };
-
-    // サブタスクをステータスごとにグループ化
-    const groupedSubtasks = {
-      [TASK_STATUS.TODO]: currentTask.subtasks?.filter(st => st.status === TASK_STATUS.TODO || !st.status) || [],
-      [TASK_STATUS.IN_PROGRESS]: currentTask.subtasks?.filter(st => st.status === TASK_STATUS.IN_PROGRESS) || [],
-      [TASK_STATUS.DONE]: currentTask.subtasks?.filter(st => st.status === TASK_STATUS.DONE) || []
+    
+    // モーダルの外側クリックで閉じる
+    const handleModalClick = (e) => {
+      if (e.target.classList.contains('modal-background')) {
+        onClose();
+      }
     };
-
+    
+    // 各ステータスのサブタスクを表示
+    const groupedSubtasks = getGroupedSubtasks();
+    const allSubtasksCount = localSubtasks.length;
+    const completedSubtasksCount = localSubtasks.filter(st => st.completed).length;
+    const progressPercentage = allSubtasksCount > 0 
+      ? Math.round((completedSubtasksCount / allSubtasksCount) * 100) 
+      : 0;
+    
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-bold">{currentTask.title}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-1">プロジェクト</h3>
-              <p className="text-gray-600 bg-gray-50 p-2 rounded">{currentTask.project || '未設定'}</p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-1">締め切り</h3>
-              <p className={`text-gray-600 bg-gray-50 p-2 rounded ${getDueDateClassName(currentTask.dueDate, currentTask.status === TASK_STATUS.DONE)}`}>
-                {currentTask.dueDate ? formatDate(currentTask.dueDate) : '未設定'}
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-1">状態</h3>
-              <p className={`p-2 rounded font-medium ${
-                currentTask.status === TASK_STATUS.TODO 
-                  ? 'bg-gray-100 text-gray-600' 
-                  : currentTask.status === TASK_STATUS.IN_PROGRESS 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-green-100 text-green-600'
-              }`}>
-                {currentTask.status === TASK_STATUS.TODO ? '未着手' :
-                 currentTask.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-1">作成日</h3>
-              <p className="text-gray-600 bg-gray-50 p-2 rounded">{formatDate(currentTask.createdAt)}</p>
-            </div>
-          </div>
-
-          {/* サブタスク セクション */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold text-gray-700">サブタスク</h3>
-              <div className="text-sm text-gray-500">
-                完了: {currentTask.subtasks?.filter(st => st.completed).length || 0}/{currentTask.subtasks?.length || 0}
-              </div>
-            </div>
-
-            {/* サブタスク追加フォーム */}
-            <form onSubmit={handleSubtaskSubmit} className="mb-4">
-              <div className="flex">
-                <input
-                  type="text"
-                  ref={subtaskInputRef}
-                  placeholder="新しいサブタスクを入力..."
-                  className="flex-grow p-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-300"
-                />
-                <button
-                  type="submit"
-                  className="bg-blue-500 text-white p-2 rounded-r hover:bg-blue-600 transition-colors"
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 modal-background"
+        onClick={handleModalClick}
+      >
+        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-xl font-semibold">{task.title}</h2>
+            <div className="flex items-center space-x-2">
+              {task.project && (
+                <span 
+                  className="px-2 py-1 rounded text-white text-sm"
+                  style={{ backgroundColor: getProjectColor(task.project) }}
                 >
-                  追加
-                </button>
-              </div>
-            </form>
-
-            {/* サブタスク一覧 - ステータス別に表示 */}
-            {currentTask.subtasks && currentTask.subtasks.length > 0 ? (
-              <div className="space-y-4">
-                {/* 未着手のサブタスク */}
-                {groupedSubtasks[TASK_STATUS.TODO].length > 0 && (
-                  <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="bg-gray-100 py-2 px-3 font-medium">
-                      未着手 ({groupedSubtasks[TASK_STATUS.TODO].length})
-                    </div>
-                    <div className="divide-y divide-gray-200">
-                      {groupedSubtasks[TASK_STATUS.TODO].map(subtask => (
-                        <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
-                          <div className="flex items-center flex-grow">
-                            <div className="flex items-center mr-2">
-                              <button
-                                onClick={() => promoteSubtask(currentTask.id, subtask.id)}
-                                className="text-gray-500 hover:text-gray-700 mr-1"
-                                title="レベル上げ"
-                                disabled={(subtask.level || 0) === 0}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => demoteSubtask(currentTask.id, subtask.id)}
-                                className="text-gray-500 hover:text-gray-700"
-                                title="レベル下げ"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                              </button>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={subtask.completed}
-                              onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
-                              className="mr-2"
-                            />
-                            <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                              style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                              {subtask.text}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <select
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.status || TASK_STATUS.TODO}
-                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                            >
-                              <option value={TASK_STATUS.TODO}>未着手</option>
-                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                              <option value={TASK_STATUS.DONE}>完了</option>
-                            </select>
-                            <input
-                              type="date"
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.dueDate || ''}
-                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            />
-                            <button
-                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 進行中のサブタスク */}
-                {groupedSubtasks[TASK_STATUS.IN_PROGRESS].length > 0 && (
-                  <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="bg-blue-100 py-2 px-3 font-medium text-blue-800">
-                      進行中 ({groupedSubtasks[TASK_STATUS.IN_PROGRESS].length})
-                    </div>
-                    <div className="divide-y divide-gray-200">
-                      {groupedSubtasks[TASK_STATUS.IN_PROGRESS].map(subtask => (
-                        <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
-                          <div className="flex items-center flex-grow">
-                            <div className="flex items-center mr-2">
-                              <button
-                                onClick={() => promoteSubtask(currentTask.id, subtask.id)}
-                                className="text-gray-500 hover:text-gray-700 mr-1"
-                                title="レベル上げ"
-                                disabled={(subtask.level || 0) === 0}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => demoteSubtask(currentTask.id, subtask.id)}
-                                className="text-gray-500 hover:text-gray-700"
-                                title="レベル下げ"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                              </button>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={subtask.completed}
-                              onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
-                              className="mr-2"
-                            />
-                            <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                              style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                              {subtask.text}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <select
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.status || TASK_STATUS.TODO}
-                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                            >
-                              <option value={TASK_STATUS.TODO}>未着手</option>
-                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                              <option value={TASK_STATUS.DONE}>完了</option>
-                            </select>
-                            <input
-                              type="date"
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.dueDate || ''}
-                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            />
-                            <button
-                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 完了のサブタスク */}
-                {groupedSubtasks[TASK_STATUS.DONE].length > 0 && (
-                  <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="bg-green-100 py-2 px-3 font-medium text-green-800">
-                      完了 ({groupedSubtasks[TASK_STATUS.DONE].length})
-                    </div>
-                    <div className="divide-y divide-gray-200">
-                      {groupedSubtasks[TASK_STATUS.DONE].map(subtask => (
-                        <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
-                          <div className="flex items-center flex-grow">
-                            <div className="flex items-center mr-2">
-                              <button
-                                onClick={() => promoteSubtask(currentTask.id, subtask.id)}
-                                className="text-gray-500 hover:text-gray-700 mr-1"
-                                title="レベル上げ"
-                                disabled={(subtask.level || 0) === 0}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => demoteSubtask(currentTask.id, subtask.id)}
-                                className="text-gray-500 hover:text-gray-700"
-                                title="レベル下げ"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                              </button>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={subtask.completed}
-                              onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
-                              className="mr-2"
-                            />
-                            <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                              style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                              {subtask.text}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <select
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.status || TASK_STATUS.TODO}
-                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                            >
-                              <option value={TASK_STATUS.TODO}>未着手</option>
-                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                              <option value={TASK_STATUS.DONE}>完了</option>
-                            </select>
-                            <input
-                              type="date"
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.dueDate || ''}
-                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            />
-                            <button
-                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 italic bg-gray-50 p-3 rounded text-center">サブタスクはありません</p>
-            )}
+                  {task.project}
+                </span>
+              )}
+              <span className={`px-2 py-1 rounded text-white text-sm ${getStatusBgColor(task.status)}`}>
+                {getStatusText(task.status)}
+              </span>
+              <button 
+                onClick={onClose} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
-
-          {/* コメントセクション */}
-          <div>
-            <h3 className="font-semibold text-gray-700 mb-2">コメント</h3>
-            <div className="space-y-2 mb-4">
-              {currentTask.comments && currentTask.comments.length > 0 ? (
-                currentTask.comments.map(comment => (
-                  <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <p className="text-gray-700">{comment.text}</p>
+          
+          {/* コンテンツエリア */}
+          <div className="flex flex-grow overflow-hidden">
+            {/* メイン情報 */}
+            <div className="w-2/3 p-4 overflow-y-auto">
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-medium">詳細情報</h3>
+                  <button
+                    onClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    編集
+                  </button>
+                </div>
+                
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">ステータス</p>
+                      <div className="mt-1">
+                        <select
+                          className="border rounded p-1 w-full"
+                          value={task.status}
+                          onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                        >
+                          <option value={TASK_STATUS.TODO}>未着手</option>
+                          <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                          <option value={TASK_STATUS.DONE}>完了</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">締め切り</p>
+                      <div className="mt-1">
+                        <input
+                          type="date"
+                          className="border rounded p-1 w-full"
+                          value={task.dueDate || ''}
+                          onChange={(e) => updateTaskDueDate(task.id, e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">プロジェクト</p>
+                      <div className="mt-1">
+                        <input
+                          type="text"
+                          className="border rounded p-1 w-full"
+                          list="project-list"
+                          value={task.project || ''}
+                          onChange={(e) => updateTaskProject(task.id, e.target.value)}
+                        />
+                        <datalist id="project-list">
+                          {getProjects().map(project => (
+                            <option key={project} value={project} />
+                          ))}
+                        </datalist>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">作成日</p>
+                      <p className="mt-1">{formatDate(task.createdAt || new Date())}</p>
+                    </div>
+                  </div>
+                  {task.dueDate && (
+                    <div className="mt-3">
                       <button
-                        onClick={() => onDeleteComment(currentTask.id, comment.id)}
-                        className="text-red-500 hover:text-red-700 ml-2"
+                        className="bg-purple-100 text-purple-700 px-3 py-1 rounded flex items-center hover:bg-purple-200"
+                        onClick={() => generateICSFile(task)}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
+                        カレンダーに追加
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{formatDate(comment.createdAt)}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* サブタスク */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium mb-2">サブタスク 
+                  <span className="text-sm text-gray-500 ml-2">
+                    {completedSubtasksCount}/{allSubtasksCount} 完了 ({progressPercentage}%)
+                  </span>
+                </h3>
+                
+                {/* サブタスク進捗バー */}
+                {allSubtasksCount > 0 && (
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+                    <div 
+                      className="bg-blue-600 h-2.5 rounded-full" 
+                      style={{ width: `${progressPercentage}%` }}
+                    ></div>
                   </div>
-                ))
-              ) : (
-                <p className="text-gray-500 italic bg-gray-50 p-3 rounded text-center">コメントはありません</p>
-              )}
+                )}
+                
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  {/* 新規サブタスク追加フォーム */}
+                  <div className="flex mb-4">
+                    <input
+                      type="text"
+                      className="flex-grow border rounded-l px-2 py-1"
+                      placeholder="新しいサブタスクを追加"
+                      value={newSubtask}
+                      onChange={(e) => setNewSubtask(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleAddSubtask();
+                          e.preventDefault();
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleAddSubtask}
+                      className="bg-blue-500 text-white px-3 py-1 rounded-r hover:bg-blue-600"
+                    >
+                      追加
+                    </button>
+                  </div>
+                  
+                  {/* サブタスクリスト - ステータス別に表示 */}
+                  {Object.entries(groupedSubtasks).map(([status, subtasks]) => (
+                    subtasks.length > 0 && (
+                      <div key={status} className="mb-3">
+                        <div className={`px-2 py-1 rounded text-white text-sm inline-block mb-2 ${getStatusBgColor(status)}`}>
+                          {getStatusText(status)} ({subtasks.length})
+                        </div>
+                        <div className="space-y-2">
+                          {subtasks.map(subtask => (
+                            <div key={subtask.id} className="flex items-center hover:bg-gray-100 p-1 rounded">
+                              <input
+                                type="checkbox"
+                                checked={subtask.completed}
+                                onChange={() => handleToggleSubtask(subtask.id)}
+                                className="mr-2"
+                              />
+                              <span 
+                                className={`flex-grow ${subtask.completed ? 'line-through text-gray-400' : ''}`}
+                                style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                              >
+                                {subtask.text}
+                                {subtask.dueDate && (
+                                  <span className={`ml-2 text-xs ${getDueDateClassName(subtask.dueDate, subtask.completed)}`}>
+                                    ({formatDate(subtask.dueDate)})
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex items-center space-x-1">
+                                <select
+                                  className="text-xs border rounded p-1"
+                                  value={subtask.status || TASK_STATUS.TODO}
+                                  onChange={(e) => handleUpdateSubtaskStatus(subtask.id, e.target.value)}
+                                >
+                                  <option value={TASK_STATUS.TODO}>未着手</option>
+                                  <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                  <option value={TASK_STATUS.DONE}>完了</option>
+                                </select>
+                                <input
+                                  type="date"
+                                  className="text-xs border rounded p-1"
+                                  value={subtask.dueDate || ''}
+                                  onChange={(e) => handleSetSubtaskDueDate(subtask.id, e.target.value)}
+                                />
+                                <button
+                                  onClick={() => {
+                                    deleteSubtask(task.id, subtask.id);
+                                    setLocalSubtasks(prev => sortSubtasksByDueDate(prev.filter(st => st.id !== subtask.id)));
+                                  }}
+                                  className="text-red-500 hover:text-red-700"
+                                  title="削除"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                  
+                  {allSubtasksCount === 0 && (
+                    <p className="text-gray-500 text-center py-2">サブタスクはありません</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* コメント */}
+              <div>
+                <h3 className="text-lg font-medium mb-2">コメント</h3>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  {/* コメント入力フォーム */}
+                  <form onSubmit={handleAddComment} className="mb-4">
+                    <textarea
+                      className="w-full border rounded p-2 mb-2"
+                      rows="2"
+                      placeholder="コメントを入力..."
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                    ></textarea>
+                    <button
+                      type="submit"
+                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                    >
+                      コメント追加
+                    </button>
+                  </form>
+                  
+                  {/* コメントリスト */}
+                  <div className="space-y-3">
+                    {task.comments && task.comments.length > 0 ? (
+                      task.comments.map((comment, index) => (
+                        <div key={index} className="bg-white p-3 rounded border">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-gray-500">
+                              {formatDate(comment.date)} {formatTime(comment.date)}
+                            </span>
+                            <button
+                              onClick={() => deleteCommentFromTask(task.id, index)}
+                              className="text-red-500 hover:text-red-700"
+                              title="削除"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          <p>{comment.text}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-center py-2">コメントはありません</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-            <form onSubmit={handleSubmit}>
-              <textarea
-                ref={commentInputRef}
-                placeholder="コメントを入力..."
-                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
-                rows="3"
-              />
-              <button
-                type="submit"
-                className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-              >
-                コメントを追加
-              </button>
-            </form>
+            
+            {/* サイドバー */}
+            <div className="w-1/3 bg-gray-50 p-4 overflow-y-auto border-l">
+              <h3 className="text-lg font-medium mb-3">アクション</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE);
+                    onClose();
+                  }}
+                  className={`w-full p-2 rounded text-white ${
+                    task.status === TASK_STATUS.DONE ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'
+                  }`}
+                >
+                  {task.status === TASK_STATUS.DONE ? '未完了に戻す' : '完了にする'}
+                </button>
+                <button
+                  onClick={() => {
+                    deleteTask(task.id);
+                    onClose();
+                  }}
+                  className="w-full p-2 rounded bg-red-500 text-white hover:bg-red-600"
+                >
+                  タスクを削除
+                </button>
+                {task.dueDate && (
+                  <button
+                    onClick={() => generateICSFile(task)}
+                    className="w-full p-2 rounded bg-purple-500 text-white hover:bg-purple-600 flex items-center justify-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    カレンダーに追加
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1887,8 +2155,6 @@ const TaskManagementApp = () => {
       <TaskDetailModal
         task={selectedTask}
         onClose={() => setSelectedTask(null)}
-        onAddComment={addComment}
-        onDeleteComment={deleteComment}
       />
     </div>
   );
