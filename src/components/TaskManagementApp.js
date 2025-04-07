@@ -122,8 +122,9 @@ const TaskManagementApp = () => {
     if (savedTasks) {
       const parsedTasks = JSON.parse(savedTasks);
       // 既存のタスクにcomments配列とsubtasks配列を追加
-      return parsedTasks.map(task => ({
+      return parsedTasks.map((task, index) => ({
         ...task,
+        order: task.order !== undefined ? task.order : index, // 順序プロパティを追加
         comments: task.comments || [],
         subtasks: task.subtasks ? task.subtasks.map(subtask => ({
           ...subtask,
@@ -171,10 +172,17 @@ const TaskManagementApp = () => {
   const addTask = () => {
     if (newTaskTitle.trim() === '') return;
     
+    // 同じステータスの中で最大のorder値を取得
+    const sameStatusTasks = tasks.filter(t => t.status === TASK_STATUS.TODO);
+    const maxOrder = sameStatusTasks.length > 0 
+      ? Math.max(...sameStatusTasks.map(t => t.order || 0)) + 1 
+      : 0;
+    
     const newTask = {
       id: Date.now(),
       title: newTaskTitle,
       status: TASK_STATUS.TODO,
+      order: maxOrder, // 新しいタスクには最大値+1の順序を割り当て
       dueDate: newTaskDueDate || null,
       project: newTaskProject,
       createdAt: new Date().toISOString(),
@@ -199,24 +207,27 @@ const TaskManagementApp = () => {
     }
   };
 
-  // 空のタスクを特定のステータスで追加
+  // 空のタスクを追加（ステータス指定可能）
   const addEmptyTask = (status) => {
+    // 同じステータスの中で最大のorder値を取得
+    const sameStatusTasks = tasks.filter(t => t.status === status);
+    const maxOrder = sameStatusTasks.length > 0 
+      ? Math.max(...sameStatusTasks.map(t => t.order || 0)) + 1 
+      : 0;
+    
     const newTask = {
       id: Date.now(),
-      title: `新しいタスク ${new Date().toLocaleTimeString()}`,
+      title: "新しいタスク",
       status: status,
+      order: maxOrder, // 新しいタスクには最大値+1の順序を割り当て
       createdAt: new Date().toISOString(),
-      dueDate: null,
-      project: null,
       comments: [],
-      subtasks: [], // サブタスク配列を追加
+      subtasks: [],
     };
-    setTasks(prevTasks => [...prevTasks, newTask]);
     
+    setTasks([...tasks, newTask]);
     // 追加後すぐに編集モードに
-    setTimeout(() => {
-      startEditing(newTask.id, newTask.title, newTask.dueDate, newTask.project);
-    }, 100);
+    startEditing(newTask.id, newTask.title, null, null);
   };
 
   // コメント入力の状態を更新
@@ -301,11 +312,17 @@ const TaskManagementApp = () => {
 
   // タスクの状態を更新
   const updateTaskStatus = (id, newStatus) => {
-    setTasks(
-      tasks.map(task =>
-        task.id === id ? { ...task, status: newStatus } : task
-      )
-    );
+    // ステータス変更先の最大order値を取得
+    const targetStatusTasks = tasks.filter(t => t.status === newStatus);
+    const maxOrder = targetStatusTasks.length > 0 
+      ? Math.max(...targetStatusTasks.map(t => t.order || 0)) + 1 
+      : 0;
+    
+    setTasks(tasks.map(task => 
+      task.id === id 
+        ? { ...task, status: newStatus, order: maxOrder } // 新しいステータスの最後尾に配置
+        : task
+    ));
   };
 
   // タスクを削除
@@ -352,32 +369,33 @@ const TaskManagementApp = () => {
     setEditDueDate(e.target.value);
   };
 
-  // ドラッグ開始ハンドラー
+  // ドラッグ開始ハンドラ - データ転送オブジェクトにタスクIDを設定
   const handleDragStart = (taskId, e) => {
+    // ドラッグデータをセット
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', taskId.toString());
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    
+    // ドラッグ中のタスクを記録
     setDraggedTask(taskId);
     
-    // ドラッグ中のプレビュー画像を設定
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      // ドラッグイメージを設定（ゴーストイメージ）
-      try {
-        const dragImg = document.createElement('div');
-        dragImg.style.width = '5px';
-        dragImg.style.height = '5px';
-        dragImg.style.backgroundColor = 'transparent';
-        document.body.appendChild(dragImg);
-        e.dataTransfer.setDragImage(dragImg, 0, 0);
-        setTimeout(() => {
-          document.body.removeChild(dragImg);
-        }, 0);
-      } catch (err) {
-        console.error("Failed to set drag image", err);
-      }
+    // ドラッグ時のプレビュー画像を調整（透明度を設定）
+    if (e.target) {
+      setTimeout(() => {
+        e.target.style.opacity = '0.6';
+      }, 0);
     }
   };
 
-  // ドラッグ終了ハンドラー
-  const handleDragEnd = () => {
+  // ドラッグ終了ハンドラ - 要素の表示を元に戻す
+  const handleDragEnd = (e) => {
+    // ドラッグ中のスタイルをリセット
+    if (e.target) {
+      e.target.style.opacity = '1';
+    }
+    
+    // ドラッグ状態をリセット
     setDraggedTask(null);
   };
 
@@ -399,53 +417,15 @@ const TaskManagementApp = () => {
 
   // フィルター機能の実装
   const getFilteredTasks = (status) => {
-    let result = tasks.filter(task => {
-      // ステータスフィルター
-      if (task.status !== status) {
-        // サブタスクの状態に基づいて表示するかどうかを判断
-        if (task.subtasks && task.subtasks.some(subtask => subtask.status === status)) {
-          return true; // サブタスクに指定ステータスがあれば表示
-        }
-        return false;
-      }
-      return true;
-    });
-
-    // プロジェクトフィルター
-    if (projectFilter !== 'all') {
-      result = result.filter(task => task.project === projectFilter);
-    }
-
-    // 他のフィルター条件
-    if (filter === 'due-soon') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const threeDaysLater = new Date(today);
-      threeDaysLater.setDate(today.getDate() + 3);
-      
-      result = result.filter(task => {
-        if (!task.dueDate) return false;
-        
-        const dueDate = new Date(task.dueDate);
-        dueDate.setHours(0, 0, 0, 0);
-        
-        return dueDate >= today && dueDate <= threeDaysLater;
+    // 指定されたステータスでフィルタリングし、order順にソート
+    return tasks
+      .filter(task => task.status === status)
+      .sort((a, b) => {
+        // orderプロパティで並べ替え（未定義の場合は0とみなす）
+        const orderA = a.order !== undefined ? a.order : 0;
+        const orderB = b.order !== undefined ? b.order : 0;
+        return orderA - orderB;
       });
-    } else if (filter === 'overdue') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      result = result.filter(task => {
-        if (!task.dueDate) return false;
-        
-        const dueDate = new Date(task.dueDate);
-        dueDate.setHours(0, 0, 0, 0);
-        
-        return dueDate < today;
-      });
-    }
-    
-    return result;
   };
 
   // サブタスクを日時の昇順で並べ替える
@@ -473,16 +453,21 @@ const TaskManagementApp = () => {
     return sortSubtasksByDueDate(filteredSubtasks);
   };
 
-  // タスクの並び替え機能
+  // タスクの並び替え機能を改善
   const reorderTasks = (status, startIndex, endIndex) => {
-    // 同じステータスのタスクのみを抽出
-    const statusTasks = tasks.filter(task => task.status === status);
+    // 並び替えの前後が同じ場合は何もしない
+    if (startIndex === endIndex) return;
+    
+    // ステータスでフィルタリングしてorder順にソート
+    const statusTasks = getFilteredTasks(status);
     
     if (startIndex < 0 || startIndex >= statusTasks.length || 
         endIndex < 0 || endIndex >= statusTasks.length) {
       console.error("無効なインデックス:", startIndex, endIndex, statusTasks.length);
       return;
     }
+    
+    console.log("並び替え前のタスク:", statusTasks.map(t => ({ id: t.id, order: t.order })));
     
     // 移動するタスクを特定
     const taskToMove = statusTasks[startIndex];
@@ -494,14 +479,26 @@ const TaskManagementApp = () => {
     // 移動先に挿入
     newStatusTasks.splice(endIndex, 0, taskToMove);
     
-    // 他のステータスのタスクと結合して更新
-    const otherTasks = tasks.filter(task => task.status !== status);
+    // orderを再割り当て（10単位でインクリメント - 将来の挿入に余裕を持たせる）
+    const updatedTasks = newStatusTasks.map((task, index) => ({
+      ...task,
+      order: index * 10
+    }));
     
-    console.log("並び替え:", status, startIndex, endIndex, 
-                "移動前:", statusTasks.map(t => t.id),
-                "移動後:", newStatusTasks.map(t => t.id));
+    console.log("並び替え後のタスク:", updatedTasks.map(t => ({ id: t.id, order: t.order })));
     
-    setTasks([...otherTasks, ...newStatusTasks]);
+    // tasks配列を更新（他のステータスのタスクはそのまま維持）
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        // 同じステータスのタスクは新しいorder値で更新
+        const updatedTask = updatedTasks.find(t => t.id === task.id);
+        if (updatedTask) {
+          return updatedTask;
+        }
+        // 他のステータスのタスクはそのまま
+        return task;
+      })
+    );
   };
 
   // カンバンカラムコンポーネント
@@ -509,38 +506,14 @@ const TaskManagementApp = () => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [dragOverTaskId, setDragOverTaskId] = useState(null);
     
-    // ドロップエリアのイベントハンドラ
-    const handleDragOver = (e) => {
-      e.preventDefault();
-      setIsDragOver(true);
-    };
-    
-    const handleDragLeave = () => {
-      setIsDragOver(false);
-    };
-    
-    const handleDrop = (e) => {
-      e.preventDefault();
-      setIsDragOver(false);
-      
-      // カラムエリアへのドロップ（タスクステータス変更）
-      if (draggedTask !== null && !dragOverTaskId) {
-        const task = tasks.find(t => t.id === draggedTask);
-        if (task && task.status !== status) {
-          // ステータス変更のみ
-          updateTaskStatus(draggedTask, status);
-        }
-      }
-      
-      // ドラッグ状態をリセット
-      setDraggedTask(null);
-      setDragOverTaskId(null);
-    };
-    
-    // タスクをプロジェクト別にグループ化
+    /**
+     * タスクをプロジェクト別にグループ化
+     * @returns {Object} プロジェクト名をキーとするタスクグループ
+     */
     const groupTasksByProject = () => {
       const grouped = {};
       
+      // orderでソート済みのタスクを使用
       tasks.forEach(task => {
         const projectName = task.project || 'No Project';
         if (!grouped[projectName]) {
@@ -552,65 +525,120 @@ const TaskManagementApp = () => {
       return grouped;
     };
     
-    const groupedTasks = groupTasksByProject();
-    const hasNoTasks = Object.keys(groupedTasks).length === 0;
-    const noProjectTasks = groupedTasks['No Project'] || [];
-    delete groupedTasks['No Project']; // 「プロジェクトなし」を別に表示するため削除
-    
-    // ドロップ領域のスタイルを動的に設定
-    const dropAreaClasses = `p-2 rounded-lg shadow-inner bg-opacity-50 min-h-[200px] column-transition ${
-      isDragOver 
-      ? 'bg-blue-100 border-2 border-dashed border-blue-300' 
-      : 'bg-gray-100'
-    }`;
-
-    // タスクカードのドラッグオーバースタイル
-    const getTaskCardClasses = (taskId) => {
-      return `bg-white p-3 rounded-lg shadow-lg cursor-move task-card ${
-        dragOverTaskId === taskId 
-        ? 'border-2 border-blue-500 transform translate-y-1' 
-        : 'hover:shadow-xl'
-      } transition-all duration-200`;
+    /**
+     * カラム全体のドラッグオーバーハンドラ
+     * @param {Event} e - ドラッグオーバーイベント
+     */
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+      setIsDragOver(true);
     };
-
-    // タスクのドラッグイベントハンドラ
+    
+    /**
+     * カラムからのドラッグリーブハンドラ
+     */
+    const handleDragLeave = () => {
+      setIsDragOver(false);
+    };
+    
+    /**
+     * カラム領域へのドロップハンドラ
+     * @param {Event} e - ドロップイベント
+     */
+    const handleDrop = (e) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      
+      console.log("カラムへのドロップ:", status, "タスク:", draggedTask);
+      
+      // カラムエリアへのドロップ（タスクステータス変更）
+      if (draggedTask !== null && !dragOverTaskId) {
+        // 全タスクからドラッグ中のタスクを検索
+        const allTasks = tasks.find(t => t.id === draggedTask);
+        
+        // タスクが見つからないか、異なるステータスの場合は移動
+        if (!allTasks || allTasks.status !== status) {
+          // ステータス変更を実行
+          updateTaskStatus(draggedTask, status);
+          console.log("ステータス変更完了:", draggedTask, "→", status);
+        }
+      }
+      
+      // ドラッグ状態をリセット
+      setDraggedTask(null);
+      setDragOverTaskId(null);
+    };
+    
+    /**
+     * タスクカードのドラッグオーバーハンドラ
+     * @param {Event} e - ドラッグオーバーイベント
+     * @param {string|number} taskId - ドラッグオーバーされたタスクID
+     */
     const handleTaskDragOver = (e, taskId) => {
       e.preventDefault();
       e.stopPropagation();
+      
+      // ドロップ効果を設定
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+      
       setDragOverTaskId(taskId);
     };
-
+    
+    /**
+     * タスクカードのドラッグリーブハンドラ
+     * @param {Event} e - ドラッグリーブイベント
+     */
     const handleTaskDragLeave = (e) => {
       e.preventDefault();
       e.stopPropagation();
       setDragOverTaskId(null);
     };
-
+    
+    /**
+     * タスクカードへのドロップハンドラ
+     * @param {Event} e - ドロップイベント
+     * @param {string|number} taskId - ドロップ先のタスクID
+     */
     const handleTaskDrop = (e, taskId) => {
       e.preventDefault();
       e.stopPropagation();
       
+      console.log("タスクへのドロップ:", taskId, "ドラッグ中:", draggedTask);
+      
       if (draggedTask && draggedTask !== taskId) {
+        // ドラッグ元とドロップ先のタスクを特定
         const sourceTask = tasks.find(t => t.id === draggedTask);
         const targetTask = tasks.find(t => t.id === taskId);
         
         if (sourceTask && targetTask) {
           // 同じステータスのタスク間での並び替え
           if (sourceTask.status === targetTask.status) {
-            const statusTasks = tasks.filter(t => t.status === status);
+            const statusTasks = getFilteredTasks(targetTask.status);
             const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask);
             const dropIndex = statusTasks.findIndex(t => t.id === taskId);
             
-            console.log("タスク並び替え:", draggedTask, "→", taskId, "インデックス:", draggedIndex, "→", dropIndex);
+            console.log("タスク並び替え:", 
+                        "移動元:", draggedTask, `(order=${sourceTask.order})`, 
+                        "移動先:", taskId, `(order=${targetTask.order})`, 
+                        "インデックス:", draggedIndex, "→", dropIndex);
             
             if (draggedIndex !== -1 && dropIndex !== -1) {
-              reorderTasks(status, draggedIndex, dropIndex);
+              reorderTasks(targetTask.status, draggedIndex, dropIndex);
             }
           } 
           // 異なるステータス間でのドロップ（ステータス変更）
           else {
-            console.log("ステータス変更:", draggedTask, "→", status);
-            updateTaskStatus(draggedTask, status);
+            console.log("ステータス変更:", 
+                        "タスク:", draggedTask, 
+                        "旧ステータス:", sourceTask.status, 
+                        "新ステータス:", targetTask.status);
+            
+            updateTaskStatus(draggedTask, targetTask.status);
           }
         }
       }
@@ -867,7 +895,7 @@ const TaskManagementApp = () => {
         >
           {/* プロジェクト別グループ */}
           {Object.keys(groupedTasks).sort().map(projectName => (
-            <div key={projectName} className="mb-3">
+            <div key={projectName} className="mb-4">
               <div 
                 className="bg-gray-200 p-2 rounded-md mb-2"
                 style={{ 
@@ -878,7 +906,7 @@ const TaskManagementApp = () => {
               >
                 <h3 className="font-medium">{projectName}</h3>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {groupedTasks[projectName].map(task => (
                   <div 
                     key={task.id}
@@ -889,11 +917,14 @@ const TaskManagementApp = () => {
                     onDragLeave={handleTaskDragLeave}
                     onDrop={(e) => handleTaskDrop(e, task.id)}
                     className={getTaskCardClasses(task.id)}
+                    data-task-id={task.id}
+                    data-task-order={task.order}
                   >
+                    {/* タスクの上部に視覚的なドラッグハンドルを追加 */}
+                    <div className="w-full h-1 bg-gray-200 rounded-full mb-2 cursor-move opacity-50 hover:opacity-100 hover:bg-blue-300"></div>
+                    
                     {editingId === task.id ? (
-                      // 編集モード（既存コードをそのまま使用）
                       <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
-                        {/* 既存の編集フォーム */}
                         <div className="flex mb-2">
                           <input
                             type="text"
@@ -935,7 +966,6 @@ const TaskManagementApp = () => {
                         </div>
                       </form>
                     ) : (
-                      // 表示モード（既存コードをそのまま使用）
                       <div className="flex items-start">
                         <input
                           type="checkbox"
@@ -944,13 +974,19 @@ const TaskManagementApp = () => {
                           className="mr-2 mt-1"
                         />
                         <div className="flex-grow flex flex-col">
-                          <span
-                            className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
-                            onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
-                          >
-                            {task.title}
-                          </span>
-                          <div className="flex flex-nowrap items-center gap-2 mt-1">
+                          <div className="flex justify-between items-start">
+                            <span
+                              className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
+                              onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                            >
+                              {task.title}
+                              {/* デバッグ用：タスクのorder値を表示 */}
+                              <span className="text-xs text-gray-400 ml-1">
+                                [ord:{task.order !== undefined ? task.order : 'なし'}]
+                              </span>
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
                             {task.dueDate && (
                               <span className={`text-xs ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
                                 期限: {formatDate(task.dueDate)}
@@ -1027,6 +1063,11 @@ const TaskManagementApp = () => {
                                     <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
                                       style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
                                       {subtask.text}
+                                      {subtask.dueDate && (
+                                        <span className={`ml-2 text-xs ${getDueDateClassName(subtask.dueDate, subtask.completed)}`}>
+                                          ({formatDate(subtask.dueDate)})
+                                        </span>
+                                      )}
                                     </span>
                                     <div className="flex items-center">
                                       <select
@@ -1096,6 +1137,9 @@ const TaskManagementApp = () => {
                         </div>
                       </div>
                     )}
+                    
+                    {/* タスクの下部に視覚的なドラッグハンドルを追加 */}
+                    <div className="w-full h-1 bg-gray-200 rounded-full mt-2 cursor-move opacity-50 hover:opacity-100 hover:bg-blue-300"></div>
                   </div>
                 ))}
               </div>
@@ -1449,143 +1493,229 @@ const TaskManagementApp = () => {
     document.body.removeChild(link);
   };
 
-  // サブタスクを追加
+  /**
+   * サブタスクを追加する関数
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskText - サブタスクのテキスト
+   */
   const addSubtask = (taskId, subtaskText) => {
-    if (subtaskText.trim()) {
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? {
-                ...task,
-                subtasks: [
-                  ...task.subtasks,
-                  {
-                    id: Date.now(),
-                    text: subtaskText,
-                    completed: false,
-                    status: TASK_STATUS.TODO, // 明示的にステータスを追加
-                    createdAt: new Date().toISOString(),
-                    dueDate: null,
-                    level: 0, // デフォルトのレベルは0（最上位）
-                  },
-                ],
-              }
-            : task
-        )
-      );
-    }
+    // テキストが空の場合は何もしない
+    if (!subtaskText.trim()) return;
+    
+    // 新しいサブタスクオブジェクトを作成
+    const newSubtask = {
+      id: Date.now().toString(),
+      text: subtaskText.trim(),
+      completed: false,
+      status: TASK_STATUS.TODO,
+      level: 0, // 階層レベル（ネスト用）
+      dueDate: null,
+      createdAt: new Date().toISOString()
+    };
+    
+    // タスクリストを更新
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const updatedSubtasks = [...(task.subtasks || []), newSubtask];
+          return { 
+            ...task,
+            subtasks: sortSubtasksByDueDate(updatedSubtasks)
+          };
+        }
+        return task;
+      })
+    );
   };
-  
-  // サブタスクのレベルを上げる（インデントを減らす）
+
+  /**
+   * サブタスクの階層レベルを上げる（左に移動）
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskId - サブタスクのID
+   */
   const promoteSubtask = (taskId, subtaskId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.map(subtask =>
-                subtask.id === subtaskId
-                  ? { ...subtask, level: Math.max(0, (subtask.level || 0) - 1) }
-                  : subtask
-              ),
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          const updatedSubtasks = task.subtasks.map(subtask => {
+            if (subtask.id === subtaskId) {
+              // レベル0が最も左側なので、それ以上は左に移動できない
+              const newLevel = Math.max(0, (subtask.level || 0) - 1);
+              return { ...subtask, level: newLevel };
             }
-          : task
-      )
+            return subtask;
+          });
+          
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
   };
-  
-  // サブタスクのレベルを下げる（インデントを増やす）
+
+  /**
+   * サブタスクの階層レベルを下げる（右に移動）
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskId - サブタスクのID
+   */
   const demoteSubtask = (taskId, subtaskId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.map(subtask =>
-                subtask.id === subtaskId
-                  ? { ...subtask, level: (subtask.level || 0) + 1 }
-                  : subtask
-              ),
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          const updatedSubtasks = task.subtasks.map(subtask => {
+            if (subtask.id === subtaskId) {
+              // 最大で5レベルまでのネスト（視認性のため）
+              const newLevel = Math.min(5, (subtask.level || 0) + 1);
+              return { ...subtask, level: newLevel };
             }
-          : task
-      )
+            return subtask;
+          });
+          
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
   };
 
-  // サブタスクの状態を更新（完了/未完了）
+  /**
+   * サブタスクの完了ステータスをトグルする
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskId - サブタスクのID
+   */
   const toggleSubtaskCompletion = (taskId, subtaskId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.map(subtask =>
-                subtask.id === subtaskId
-                  ? { 
-                      ...subtask, 
-                      completed: !subtask.completed,
-                      status: !subtask.completed ? TASK_STATUS.DONE : TASK_STATUS.TODO
-                    }
-                  : subtask
-              ),
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          const updatedSubtasks = task.subtasks.map(subtask => {
+            if (subtask.id === subtaskId) {
+              const newCompleted = !subtask.completed;
+              // 完了ステータスと連動させる
+              const newStatus = newCompleted ? TASK_STATUS.DONE : TASK_STATUS.TODO;
+              return { 
+                ...subtask, 
+                completed: newCompleted,
+                status: newStatus 
+              };
             }
-          : task
-      )
+            return subtask;
+          });
+          
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
   };
 
-  // サブタスクのステータスを更新
+  /**
+   * サブタスクのステータスを更新する
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskId - サブタスクのID
+   * @param {string} newStatus - 新しいステータス
+   */
   const updateSubtaskStatus = (taskId, subtaskId, newStatus) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.map(subtask =>
-                subtask.id === subtaskId
-                  ? { 
-                      ...subtask, 
-                      status: newStatus,
-                      completed: newStatus === TASK_STATUS.DONE // 完了ステータスの場合はcompletedをtrueに
-                    }
-                  : subtask
-              ),
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          const updatedSubtasks = task.subtasks.map(subtask => {
+            if (subtask.id === subtaskId) {
+              // ステータスがDONEの場合は、completedも連動させる
+              const newCompleted = newStatus === TASK_STATUS.DONE;
+              return { 
+                ...subtask, 
+                status: newStatus,
+                completed: newCompleted 
+              };
             }
-          : task
-      )
+            return subtask;
+          });
+          
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
   };
 
-  // サブタスクを削除
+  /**
+   * サブタスクを削除する
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskId - 削除するサブタスクのID
+   */
   const deleteSubtask = (taskId, subtaskId) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.filter(subtask => subtask.id !== subtaskId),
-            }
-          : task
-      )
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          const updatedSubtasks = task.subtasks.filter(
+            subtask => subtask.id !== subtaskId
+          );
+          
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
   };
 
-  // サブタスクの期限日を設定
+  /**
+   * サブタスクの期限日を設定する
+   * @param {string|number} taskId - 親タスクのID
+   * @param {string} subtaskId - サブタスクのID
+   * @param {string} dueDate - 期限日（YYYY-MM-DD形式）
+   */
   const setSubtaskDueDate = (taskId, subtaskId, dueDate) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.map(subtask =>
-                subtask.id === subtaskId
-                  ? { ...subtask, dueDate }
-                  : subtask
-              ),
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.subtasks) {
+          // サブタスクを日付ソートする前に更新
+          const updatedSubtasks = task.subtasks.map(subtask => {
+            if (subtask.id === subtaskId) {
+              return { ...subtask, dueDate };
             }
-          : task
-      )
+            return subtask;
+          });
+          
+          // 更新後のサブタスクリストを日付順にソート
+          return { ...task, subtasks: sortSubtasksByDueDate(updatedSubtasks) };
+        }
+        return task;
+      })
     );
+  };
+
+  /**
+   * サブタスクを日付順にソートする
+   * @param {Array} subtasks - サブタスクの配列
+   * @returns {Array} ソート済みのサブタスク配列
+   */
+  const sortSubtasksByDueDate = (subtasks) => {
+    if (!subtasks || subtasks.length === 0) return [];
+    
+    return [...subtasks].sort((a, b) => {
+      // 期限が設定されていない場合は後ろに配置
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      
+      // 日付を比較
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      return dateA - dateB;
+    });
+  };
+
+  /**
+   * 指定されたステータスでサブタスクをフィルタリングする
+   * @param {Object} task - タスクオブジェクト
+   * @param {string} status - フィルタリングするステータス
+   * @returns {Array} フィルタリングされたサブタスクの配列
+   */
+  const getFilteredSubtasks = (task, status) => {
+    if (!task.subtasks || task.subtasks.length === 0) return [];
+    const filteredSubtasks = task.subtasks.filter(subtask => subtask.status === status);
+    // 日時の昇順で並べ替え
+    return sortSubtasksByDueDate(filteredSubtasks);
   };
 
   // タスク詳細モーダル
