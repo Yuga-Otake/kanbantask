@@ -448,15 +448,54 @@ const TaskManagementApp = () => {
     return result;
   };
 
-  // サブタスクをフィルタリングする関数を追加
+  // サブタスクを日時の昇順で並べ替える
+  const sortSubtasksByDueDate = (subtasks) => {
+    if (!subtasks || subtasks.length === 0) return [];
+    
+    return [...subtasks].sort((a, b) => {
+      // 期限が設定されていない場合は後ろに配置
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      
+      // 日付を比較
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      return dateA - dateB;
+    });
+  };
+
+  // サブタスクをフィルタリングする関数を修正 - 日時順にソートを追加
   const getFilteredSubtasks = (task, status) => {
     if (!task.subtasks || task.subtasks.length === 0) return [];
-    return task.subtasks.filter(subtask => subtask.status === status);
+    const filteredSubtasks = task.subtasks.filter(subtask => subtask.status === status);
+    // 日時の昇順で並べ替え
+    return sortSubtasksByDueDate(filteredSubtasks);
+  };
+
+  // タスクの並び替え機能
+  const reorderTasks = (status, startIndex, endIndex) => {
+    // 同じステータスのタスクのみを抽出
+    const statusTasks = tasks.filter(task => task.status === status);
+    
+    // 移動するタスクを特定
+    const taskToMove = statusTasks[startIndex];
+    
+    // 新しい配列を作成（移動元を削除）
+    const newStatusTasks = statusTasks.filter((_, index) => index !== startIndex);
+    
+    // 移動先に挿入
+    newStatusTasks.splice(endIndex, 0, taskToMove);
+    
+    // 他のステータスのタスクと結合して更新
+    const otherTasks = tasks.filter(task => task.status !== status);
+    setTasks([...otherTasks, ...newStatusTasks]);
   };
 
   // カンバンカラムコンポーネント
   const KanbanColumn = ({ title, status, tasks }) => {
     const [isDragOver, setIsDragOver] = useState(false);
+    const [dragOverTaskId, setDragOverTaskId] = useState(null);
     
     // ドロップエリアのイベントハンドラ
     const handleDragOver = (e) => {
@@ -479,6 +518,7 @@ const TaskManagementApp = () => {
       
       // ドラッグ状態をリセット
       setDraggedTask(null);
+      setDragOverTaskId(null);
     };
     
     // タスクをプロジェクト別にグループ化
@@ -507,6 +547,42 @@ const TaskManagementApp = () => {
       ? 'bg-blue-100 border-2 border-dashed border-blue-300' 
       : 'bg-gray-100'
     }`;
+
+    // タスクカードのドラッグオーバースタイル
+    const getTaskCardClasses = (taskId) => {
+      return `bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200 ${
+        dragOverTaskId === taskId ? 'border-2 border-blue-500 transform translate-y-1' : ''
+      }`;
+    };
+
+    // タスクのドラッグイベントハンドラ
+    const handleTaskDragOver = (e, taskId) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverTaskId(taskId);
+    };
+
+    const handleTaskDragLeave = () => {
+      setDragOverTaskId(null);
+    };
+
+    const handleTaskDrop = (e, taskId) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (draggedTask && draggedTask !== taskId) {
+        const statusTasks = tasks.filter(t => t.status === status);
+        const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask);
+        const dropIndex = statusTasks.findIndex(t => t.id === taskId);
+        
+        if (draggedIndex !== -1 && dropIndex !== -1) {
+          reorderTasks(status, draggedIndex, dropIndex);
+        }
+      }
+      
+      setDragOverTaskId(null);
+      setDraggedTask(null);
+    };
 
     return (
       <div className="w-1/3 px-2 max-w-md">
@@ -551,7 +627,10 @@ const TaskManagementApp = () => {
                     draggable
                     onDragStart={(e) => handleDragStart(task.id, e)}
                     onDragEnd={handleDragEnd}
-                    className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
+                    onDragOver={(e) => handleTaskDragOver(e, task.id)}
+                    onDragLeave={handleTaskDragLeave}
+                    onDrop={(e) => handleTaskDrop(e, task.id)}
+                    className={getTaskCardClasses(task.id)}
                   >
                     {editingId === task.id ? (
                       <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
@@ -771,7 +850,10 @@ const TaskManagementApp = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(task.id, e)}
                   onDragEnd={handleDragEnd}
-                  className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
+                  onDragOver={(e) => handleTaskDragOver(e, task.id)}
+                  onDragLeave={handleTaskDragLeave}
+                  onDrop={(e) => handleTaskDrop(e, task.id)}
+                  className={getTaskCardClasses(task.id)}
                 >
                   {editingId === task.id ? (
                     <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
