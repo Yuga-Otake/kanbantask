@@ -1593,12 +1593,19 @@ const TaskManagementApp = () => {
     const [newComment, setNewComment] = useState('');
     const [commentText, setCommentText] = useState('');
     const [newSubtask, setNewSubtask] = useState('');
-    const [localSubtasks, setLocalSubtasks] = useState(task.subtasks || []);
+    const [localSubtasks, setLocalSubtasks] = useState((task && task.subtasks) || []);
     
     useEffect(() => {
       // タスクが変更された場合、ローカルのサブタスクを更新
-      setLocalSubtasks(sortSubtasksByDueDate(task.subtasks || []));
+      if (task) {
+        setLocalSubtasks(sortSubtasksByDueDate(task.subtasks || []));
+      }
     }, [task]);
+    
+    // nullチェックを追加
+    if (!task) {
+      return null;
+    }
     
     // サブタスクを締め切り日で並べ替え
     const getSortedSubtasks = (statusFilter = null) => {
@@ -2271,10 +2278,12 @@ const TaskManagementApp = () => {
       </div>
 
       {/* タスク詳細モーダル */}
-      <TaskDetailModal
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-      />
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
     </div>
   );
 };
