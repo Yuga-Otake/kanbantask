@@ -1254,6 +1254,34 @@ const TaskManagementApp = () => {
                                     style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
                                     {subtask.text}
                                   </span>
+                                  <div className="flex items-center">
+                                    <select
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.status || TASK_STATUS.TODO}
+                                      onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
+                                      style={{ maxWidth: '80px' }}
+                                    >
+                                      <option value={TASK_STATUS.TODO}>未着手</option>
+                                      <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                      <option value={TASK_STATUS.DONE}>完了</option>
+                                    </select>
+                                    <input
+                                      type="date"
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.dueDate || ''}
+                                      onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                                      style={{ width: '110px' }}
+                                    />
+                                    <button
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-1"
+                                      title="削除"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -1869,11 +1897,8 @@ const TaskManagementApp = () => {
                                   onChange={(e) => handleSetSubtaskDueDate(subtask.id, e.target.value)}
                                 />
                                 <button
-                                  onClick={() => {
-                                    deleteSubtask(task.id, subtask.id);
-                                    setLocalSubtasks(prev => sortSubtasksByDueDate(prev.filter(st => st.id !== subtask.id)));
-                                  }}
-                                  className="text-red-500 hover:text-red-700"
+                                  onClick={() => deleteSubtask(task.id, subtask.id)}
+                                  className="text-red-500 hover:text-red-700 ml-1"
                                   title="削除"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1985,6 +2010,100 @@ const TaskManagementApp = () => {
           </div>
         </div>
       </div>
+    );
+  };
+
+  // タスクのステータスに応じた背景色を取得
+  const getStatusBgColor = (status) => {
+    switch (status) {
+      case TASK_STATUS.TODO:
+        return 'bg-gray-500';
+      case TASK_STATUS.IN_PROGRESS:
+        return 'bg-blue-500';
+      case TASK_STATUS.DONE:
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+  
+  // ステータスの表示テキストを取得
+  const getStatusText = (status) => {
+    switch (status) {
+      case TASK_STATUS.TODO:
+        return '未着手';
+      case TASK_STATUS.IN_PROGRESS:
+        return '進行中';
+      case TASK_STATUS.DONE:
+        return '完了';
+      default:
+        return '未着手';
+    }
+  };
+  
+  // 時間のフォーマット (HH:MM)
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  // タスクにコメントを追加
+  const addCommentToTask = (taskId, commentText) => {
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const newComment = {
+            id: Date.now().toString(),
+            text: commentText,
+            date: new Date().toISOString()
+          };
+          return {
+            ...task,
+            comments: [...(task.comments || []), newComment]
+          };
+        }
+        return task;
+      })
+    );
+  };
+  
+  // タスクからコメントを削除
+  const deleteCommentFromTask = (taskId, commentIndex) => {
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId && task.comments) {
+          const newComments = [...task.comments];
+          newComments.splice(commentIndex, 1);
+          return {
+            ...task,
+            comments: newComments
+          };
+        }
+        return task;
+      })
+    );
+  };
+  
+  // タスクのプロジェクトを更新
+  const updateTaskProject = (taskId, project) => {
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === taskId 
+          ? { ...task, project } 
+          : task
+      )
+    );
+  };
+  
+  // タスクの締め切り日を更新
+  const updateTaskDueDate = (taskId, dueDate) => {
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === taskId 
+          ? { ...task, dueDate } 
+          : task
+      )
     );
   };
 
