@@ -133,11 +133,26 @@
         return null;
       }
 
+      // デバッグ用に受信したタスクデータをコンソールに出力
+      function debugTask(task) {
+        if (!task) {
+          console.error('タスクデータがありません');
+          return;
+        }
+        console.log('受信したタスクデータ:', JSON.stringify(task, null, 2));
+        console.log('タスク名:', task.title || task.text);
+        console.log('サブタスク:', task.subtasks);
+        console.log('ステータス:', task.status);
+      }
+
       // タスクデータを表示する
       function displayTaskData(task) {
         if (!task) return;
         
         currentTask = task;
+        
+        // デバッグ出力
+        debugTask(task);
         
         // タスク名とチェックボックス
         taskTitle.textContent = task.title || task.text || 'タスク';
