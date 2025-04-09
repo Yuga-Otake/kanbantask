@@ -459,36 +459,37 @@ const TaskManagementApp = () => {
 
   // タスク編集モードの開始
   const startEditing = (id, title, dueDate, project) => {
+    console.log(`編集開始: id=${id}, title=${title}, dueDate=${dueDate}, project=${project}`);
     setEditingId(id);
     setEditText(title);
     setEditDueDate(dueDate || '');
     setEditProject(project || '');
-    // 次のレンダリング後にフォーカスを設定
+    
+    // 編集フォームにフォーカスを当てる（少し遅延させて確実に実行）
     setTimeout(() => {
       if (editTextRef.current) {
         editTextRef.current.focus();
       }
-    }, 10);
+    }, 50);
   };
 
   // タスクの編集を保存
   const saveEdit = () => {
-    const currentEditText = editTextRef.current ? editTextRef.current.value : editText;
-    const currentEditProject = editProjectRef.current ? editProjectRef.current.value : editProject;
+    console.log(`編集を保存: id=${editingId}, text=${editText}, dueDate=${editDueDate}, project=${editProject}`);
+    if (!editingId) return;
     
-    if (currentEditText && currentEditText.trim()) {
-      setTasks(
-        tasks.map(task =>
-          task.id === editingId ? { 
-            ...task, 
-            title: currentEditText,
-            dueDate: editDueDate || null,
-            project: currentEditProject || null
-          } : task
-        )
-      );
-    }
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === editingId 
+          ? { ...task, title: editText, dueDate: editDueDate, project: editProject }
+          : task
+      )
+    );
+    
     setEditingId(null);
+    setEditText('');
+    setEditDueDate('');
+    setEditProject('');
   };
 
   // 編集締め切り日の更新
@@ -921,7 +922,11 @@ const TaskManagementApp = () => {
                         </button>
                         <button
                           className="text-sm text-green-500 hover:text-green-700"
-                          onClick={() => setSelectedTask(task)}
+                          onClick={() => {
+                            setSelectedTask(task);
+                            // 詳細ボタンを押したときにもアクティブタスクとして設定
+                            handleSetActiveTask(task);
+                          }}
                           title="詳細を表示"
                         >
                           <div className="flex items-center">
@@ -1120,7 +1125,11 @@ const TaskManagementApp = () => {
                       </button>
                       <button
                         className="text-sm text-green-500 hover:text-green-700"
-                        onClick={() => setSelectedTask(task)}
+                        onClick={() => {
+                          setSelectedTask(task);
+                          // 詳細ボタンを押したときにもアクティブタスクとして設定
+                          handleSetActiveTask(task);
+                        }}
                         title="詳細を表示"
                       >
                         <div className="flex items-center">
@@ -2422,10 +2431,11 @@ const TaskManagementApp = () => {
             value={activeTask ? activeTask.id : ''}
             onChange={(e) => {
               const taskId = e.target.value;
+              console.log("選択されたタスクID:", taskId);
               if (taskId) {
                 const task = tasks.find(t => t.id === taskId);
+                console.log("選択されたタスク:", task);
                 if (task) {
-                  console.log("選択されたタスク:", task);
                   handleSetActiveTask(task);
                 }
               } else {
