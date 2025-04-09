@@ -2098,35 +2098,119 @@ const TaskManagementApp = () => {
   const ActiveTaskPopup = ({ task, onClose }) => {
     if (!task) return null;
 
+    // サブタスクを深さ優先で再帰的に表示する関数
+    const renderSubtasks = (subtasks, parentId = null, level = 0) => {
+      if (!subtasks || subtasks.length === 0) return null;
+      
+      // 親IDに基づいてフィルタリングしたサブタスク
+      const filteredSubtasks = parentId 
+        ? subtasks.filter(st => st.parentId === parentId)
+        : subtasks.filter(st => !st.parentId);
+      
+      return (
+        <ul className="ml-4 space-y-1">
+          {filteredSubtasks.map(subtask => (
+            <li key={subtask.id} className="flex items-start">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={subtask.completed}
+                  onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                  className="mr-2 mt-1"
+                />
+                <span 
+                  className={`${subtask.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}
+                  style={{ marginLeft: `${(subtask.level || 0) * 12}px` }}
+                >
+                  {subtask.text}
+                </span>
+              </div>
+              {/* 子サブタスクを再帰的に表示 */}
+              {renderSubtasks(subtasks, subtask.id, level + 1)}
+            </li>
+          ))}
+        </ul>
+      );
+    };
+
     return (
-      <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border-2 border-blue-500 z-50 max-w-md">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg">{task.title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+      <div className="fixed top-4 right-4 w-96 z-50 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
+        <div className="bg-blue-500 text-white px-4 py-2 flex justify-between items-center">
+          <h3 className="font-bold truncate flex-1">{task.title || task.text}</h3>
+          <button 
+            onClick={onClose}
+            className="text-white hover:text-gray-200 ml-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="space-y-2">
-          {task.project && (
-            <div className="text-sm">
-              <span className="font-semibold">プロジェクト：</span>
-              <span>{task.project}</span>
+        <div className="p-4 max-h-[80vh] overflow-y-auto">
+          <div className="mb-4">
+            <div className="flex items-center mb-2">
+              <input
+                type="checkbox"
+                checked={task.status === TASK_STATUS.DONE}
+                onChange={() => updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE)}
+                className="mr-2"
+              />
+              <h4 className={`font-semibold text-lg ${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}>
+                {task.title || task.text}
+              </h4>
             </div>
-          )}
-          {task.dueDate && (
-            <div className="text-sm">
-              <span className="font-semibold">期限：</span>
-              <span className={getDueDateClassName(task.dueDate, false)}>{formatDate(task.dueDate)}</span>
-            </div>
-          )}
-          {task.subtasks && task.subtasks.length > 0 && (
-            <div className="text-sm">
-              <span className="font-semibold">サブタスク進捗：</span>
-              <span>{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
-            </div>
-          )}
+            {task.project && (
+              <div className="text-sm text-gray-600 mb-1">
+                プロジェクト: {task.project}
+              </div>
+            )}
+            {task.dueDate && (
+              <div className={`text-sm ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
+                期限: {formatDate(task.dueDate)}
+              </div>
+            )}
+          </div>
+          
+          <div className="mb-4">
+            <h5 className="font-medium text-gray-700 mb-2">サブタスク:</h5>
+            {task.subtasks && task.subtasks.length > 0 ? (
+              <div className="space-y-1">
+                {renderSubtasks(task.subtasks)}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">サブタスクはありません</p>
+            )}
+          </div>
+          
+          {/* サブタスク追加フォーム */}
+          <div className="mt-3 border-t pt-3">
+            <input
+              type="text"
+              placeholder="+ サブタスクを追加"
+              className="w-full p-2 border rounded"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                  addSubtask(task.id, e.target.value.trim());
+                  e.target.value = '';
+                }
+              }}
+            />
+          </div>
+        </div>
+        
+        <div className="bg-gray-50 px-4 py-2 border-t flex justify-between">
+          <button
+            onClick={() => setSelectedTask(task)}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            詳細を表示
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300"
+          >
+            閉じる
+          </button>
         </div>
       </div>
     );
