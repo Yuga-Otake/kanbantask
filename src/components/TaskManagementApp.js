@@ -923,18 +923,18 @@ const TaskManagementApp = () => {
                         <button
                           className="text-sm text-green-500 hover:text-green-700"
                           onClick={() => {
-                            setSelectedTask(task);
-                            // 詳細ボタンを押したときにもアクティブタスクとして設定
+                            // 詳細ボタンを押したときは詳細モーダルとポップアップの両方を表示するのではなく
+                            // ポップアップのみを表示するように変更
                             handleSetActiveTask(task);
                           }}
-                          title="詳細を表示"
+                          title="タスクをポップアップ表示"
                         >
                           <div className="flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            詳細
+                            ポップアップ
                           </div>
                         </button>
                         <button
@@ -1126,18 +1126,18 @@ const TaskManagementApp = () => {
                       <button
                         className="text-sm text-green-500 hover:text-green-700"
                         onClick={() => {
-                          setSelectedTask(task);
-                          // 詳細ボタンを押したときにもアクティブタスクとして設定
+                          // 詳細ボタンを押したときは詳細モーダルとポップアップの両方を表示するのではなく
+                          // ポップアップのみを表示するように変更
                           handleSetActiveTask(task);
                         }}
-                        title="詳細を表示"
+                        title="タスクをポップアップ表示"
                       >
                         <div className="flex items-center">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
-                          詳細
+                          ポップアップ
                         </div>
                       </button>
                       <button
@@ -1357,6 +1357,7 @@ const TaskManagementApp = () => {
 
   // サブタスクの状態を更新（完了/未完了）
   const toggleSubtaskCompletion = (taskId, subtaskId) => {
+    console.log(`サブタスク完了状態切り替え: taskId=${taskId}, subtaskId=${subtaskId}`);
     setTasks(prevTasks =>
       prevTasks.map(task =>
         task.id === taskId
@@ -1367,14 +1368,29 @@ const TaskManagementApp = () => {
                   ? { 
                       ...subtask, 
                       completed: !subtask.completed,
-                      status: !subtask.completed ? TASK_STATUS.DONE : TASK_STATUS.TODO
+                      // 完了状態が変わったらステータスも更新する
+                      status: !subtask.completed ? TASK_STATUS.DONE : (subtask.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : subtask.status) 
                     }
                   : subtask
-              ),
+              )
             }
           : task
       )
     );
+
+    // アクティブタスクがある場合、それを更新して即時反映する
+    if (activeTask && activeTask.id === taskId) {
+      const updatedTask = tasks.find(t => t.id === taskId);
+      if (updatedTask) {
+        // アクティブタスクを更新して画面に反映する
+        setTimeout(() => {
+          setActiveTask(null); // 一旦クリアして強制的に再レンダリングを促す
+          setTimeout(() => {
+            setActiveTask(updatedTask);
+          }, 10);
+        }, 10);
+      }
+    }
   };
 
   // サブタスクのステータスを更新
@@ -2433,13 +2449,16 @@ const TaskManagementApp = () => {
               const taskId = e.target.value;
               console.log("選択されたタスクID:", taskId);
               if (taskId) {
-                const task = tasks.find(t => t.id === taskId);
-                console.log("選択されたタスク:", task);
-                if (task) {
-                  handleSetActiveTask(task);
+                // ここで直接タスクを検索してアクティブにする
+                const selectedTask = tasks.find(t => t.id === taskId);
+                console.log("選択されたタスク:", selectedTask);
+                if (selectedTask) {
+                  // アクティブタスクを直接設定
+                  setActiveTask(selectedTask);
                 }
               } else {
-                handleClosePopup();
+                // 選択解除の場合
+                setActiveTask(null);
               }
             }}
           >
