@@ -2219,13 +2219,17 @@ const TaskManagementApp = () => {
   // タスクを選択してポップアップを表示する関数
   const handleTaskSelect = (task) => {
     setSelectedTask(task);
-    setShowTaskPopup(true);
   };
 
   // ポップアップを閉じる関数
   const handleClosePopup = () => {
-    setShowTaskPopup(false);
-    setSelectedTask(null);
+    setActiveTask(null);
+  };
+
+  // フローティングタスクを設定する関数
+  const handleSetActiveTask = (task) => {
+    // 既にそのタスクがアクティブならクリア、そうでなければ設定
+    setActiveTask(prev => prev && prev.id === task.id ? null : task);
   };
 
   // タスクポップアップコンポーネント
@@ -2430,17 +2434,63 @@ const TaskManagementApp = () => {
       </div>
 
       {/* タスク詳細モーダル */}
-      <TaskDetailModal
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        onAddComment={addComment}
-        onDeleteComment={deleteComment}
-      />
+      {selectedTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+            <TaskDetailModal 
+              task={selectedTask} 
+              onClose={() => setSelectedTask(null)}
+              onAddComment={(taskId, commentText) => addComment(taskId, commentText)}
+              onDeleteComment={(taskId, commentId) => deleteComment(taskId, commentId)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* アクティブタスクのポップアップを追加 */}
-      <ActiveTaskPopup task={activeTask} onClose={() => setActiveTask(null)} />
+      {activeTask && (
+        <ActiveTaskPopup task={activeTask} onClose={handleClosePopup} />
+      )}
 
       {showTaskPopup && <TaskPopup task={selectedTask} onClose={handleClosePopup} />}
+
+      {/* 常にタスク操作用のスイッチャーを表示 */}
+      <div className="fixed bottom-4 left-4 z-50">
+        <div className="bg-white rounded-lg shadow-lg p-3 border border-gray-200">
+          <h4 className="text-sm font-bold mb-2">作業中のタスク</h4>
+          <select 
+            className="w-full p-2 border rounded mb-2"
+            value={activeTask ? activeTask.id : ''}
+            onChange={(e) => {
+              const taskId = e.target.value;
+              if (taskId) {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) setActiveTask(task);
+              } else {
+                setActiveTask(null);
+              }
+            }}
+          >
+            <option value="">選択してください</option>
+            {tasks
+              .filter(task => task.status !== TASK_STATUS.DONE)
+              .map(task => (
+                <option key={task.id} value={task.id}>
+                  {task.title || task.text}
+                </option>
+              ))
+            }
+          </select>
+          {activeTask && (
+            <button
+              onClick={handleClosePopup}
+              className="w-full bg-red-100 text-red-700 p-1 rounded text-sm hover:bg-red-200"
+            >
+              クリア
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
