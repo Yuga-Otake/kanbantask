@@ -777,71 +777,183 @@ const TaskManagementApp = () => {
                     onDrop={() => handleTaskDrop(task.id)}
                     className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                   >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-grow">
-                        {editingId === task.id ? (
-                          <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
-                            <div className="flex mb-2">
-                              <input
-                                type="text"
-                                className="flex-grow p-1 border rounded-l"
-                                defaultValue={editText}
-                                ref={editTextRef}
-                                autoFocus
-                              />
-                              <button
-                                type="submit"
-                                className="bg-green-500 text-white p-1 px-2 rounded-r"
-                              >
-                                保存
-                              </button>
+                    <div className="flex items-start">
+                      <div className="mr-2 flex items-center">
+                        <div className="h-full flex flex-col justify-center mr-1 cursor-grab text-gray-400" title="ドラッグして並べ替え">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                          </svg>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={task.status === TASK_STATUS.DONE}
+                          onChange={() => updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="flex-grow flex flex-col">
+                        <div className="flex justify-between">
+                          <span
+                            className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
+                            onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                          >
+                            {task.title}
+                          </span>
+                          <span className="text-xs text-gray-400 ml-2">順序: {task.order}</span>
+                        </div>
+                        <div className="flex flex-nowrap items-center gap-2 mt-1">
+                          {task.dueDate && (
+                            <span className={`text-xs ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
+                              期限: {formatDate(task.dueDate)}
+                            </span>
+                          )}
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <span 
+                              className="text-xs bg-gray-200 px-1 rounded cursor-pointer hover:bg-gray-300"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTask(task);
+                              }}
+                            >
+                              サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                              <span className="ml-1 text-blue-500">{task.subtasks.filter(st => st.status === TASK_STATUS.IN_PROGRESS).length > 0 ? '(進行中あり)' : ''}</span>
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* サブタスクの追加フォーム */}
+                        <div className="mt-2 border-t pt-2">
+                          <div className="flex">
+                            <input
+                              type="text"
+                              placeholder="+ サブタスクを追加"
+                              className="text-sm w-full py-1 px-2 border rounded"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && e.target.value.trim()) {
+                                  const inputValue = e.target.value;
+                                  addSubtask(task.id, inputValue);
+                                  e.target.value = '';
+                                  // フォーカスを確実に維持するために少し遅延させる
+                                  setTimeout(() => {
+                                    e.target.focus();
+                                  }, 10);
+                                  e.preventDefault(); // フォームのデフォルト送信を防止
+                                }
+                              }}
+                            />
+                          </div>
+                          
+                          {/* サブタスクのリスト表示 - 現在のカラムに対応するステータスのサブタスクだけを表示 */}
+                          {task.subtasks && getFilteredSubtasks(task, status).length > 0 && (
+                            <div className="mt-1 space-y-1">
+                              {getFilteredSubtasks(task, status).map(subtask => (
+                                <div key={subtask.id} className="flex items-center text-sm">
+                                  <div className="flex items-center mr-2">
+                                    <button
+                                      onClick={() => promoteSubtask(task.id, subtask.id)}
+                                      className="text-gray-500 hover:text-gray-700 mr-1"
+                                      title="レベル上げ"
+                                      disabled={(subtask.level || 0) === 0}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => demoteSubtask(task.id, subtask.id)}
+                                      className="text-gray-500 hover:text-gray-700"
+                                      title="レベル下げ"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="checkbox"
+                                    checked={subtask.completed}
+                                    onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                    className="mr-1"
+                                  />
+                                  <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                    style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
+                                    {subtask.text}
+                                  </span>
+                                  <div className="flex items-center">
+                                    <select
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.status || TASK_STATUS.TODO}
+                                      onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
+                                      style={{ maxWidth: '80px' }}
+                                    >
+                                      <option value={TASK_STATUS.TODO}>未着手</option>
+                                      <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                      <option value={TASK_STATUS.DONE}>完了</option>
+                                    </select>
+                                    <input
+                                      type="date"
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.dueDate || ''}
+                                      onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                                      style={{ width: '110px' }}
+                                    />
+                                    <button
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-1"
+                                      title="削除"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <div className="flex mb-2">
-                              <label className="text-sm text-gray-600 mr-2 w-20">締め切り：</label>
-                              <input
-                                type="date"
-                                className="flex-grow p-1 border rounded"
-                                value={editDueDate}
-                                onChange={handleEditDueDateChange}
-                              />
-                            </div>
-                            <div className="flex">
-                              <label className="text-sm text-gray-600 mr-2 w-20">プロジェクト：</label>
-                              <input
-                                type="text"
-                                className="flex-grow p-1 border rounded"
-                                list="edit-project-list"
-                                defaultValue={editProject}
-                                ref={editProjectRef}
-                              />
-                              <datalist id="edit-project-list">
-                                {getProjects().map(project => (
-                                  <option key={project} value={project} />
-                                ))}
-                              </datalist>
-                            </div>
-                          </form>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-800">{task.text}</span>
-                              <button
-                                onClick={() => setSelectedTask(task)}
-                                className="ml-2 text-blue-500 hover:text-blue-700"
-                                title="詳細を表示"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                              </button>
-                            </div>
-                            {task.dueDate && (
-                              <div className="text-sm text-gray-500 mt-1">
-                                締め切り: {new Date(task.dueDate).toLocaleDateString()}
-                              </div>
-                            )}
-                          </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col space-y-1 ml-2">
+                        <button
+                          className="text-sm text-blue-500 hover:text-blue-700"
+                          onClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                        >
+                          編集
+                        </button>
+                        <button
+                          className="text-sm text-green-500 hover:text-green-700"
+                          onClick={() => setSelectedTask(task)}
+                          title="詳細を表示"
+                        >
+                          <div className="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            詳細
+                          </div>
+                        </button>
+                        <button
+                          className="text-sm text-red-500 hover:text-red-700"
+                          onClick={() => deleteTask(task.id)}
+                        >
+                          削除
+                        </button>
+                        {task.dueDate && (
+                          <button
+                            className={`text-xs flex items-center px-2 py-1 rounded border ${
+                              task.isCalendarAdded
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                            }`}
+                            onClick={() => generateICSFile(task)}
+                            title={task.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>{task.isCalendarAdded ? "追加済み" : "予定追加"}</span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -864,71 +976,183 @@ const TaskManagementApp = () => {
                   onDrop={() => handleTaskDrop(task.id)}
                   className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-grow">
-                      {editingId === task.id ? (
-                        <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="flex flex-col w-full">
-                          <div className="flex mb-2">
-                            <input
-                              type="text"
-                              className="flex-grow p-1 border rounded-l"
-                              defaultValue={editText}
-                              ref={editTextRef}
-                              autoFocus
-                            />
-                            <button
-                              type="submit"
-                              className="bg-green-500 text-white p-1 px-2 rounded-r"
-                            >
-                              保存
-                            </button>
+                  <div className="flex items-start">
+                    <div className="mr-2 flex items-center">
+                      <div className="h-full flex flex-col justify-center mr-1 cursor-grab text-gray-400" title="ドラッグして並べ替え">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                        </svg>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={task.status === TASK_STATUS.DONE}
+                        onChange={() => updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex-grow flex flex-col">
+                      <div className="flex justify-between">
+                        <span
+                          className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
+                          onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                        >
+                          {task.title}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-2">順序: {task.order}</span>
+                      </div>
+                      <div className="flex flex-nowrap items-center gap-2 mt-1">
+                        {task.dueDate && (
+                          <span className={`text-xs ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
+                            期限: {formatDate(task.dueDate)}
+                          </span>
+                        )}
+                        {task.subtasks && task.subtasks.length > 0 && (
+                          <span 
+                            className="text-xs bg-gray-200 px-1 rounded cursor-pointer hover:bg-gray-300"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTask(task);
+                            }}
+                          >
+                            サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                            <span className="ml-1 text-blue-500">{task.subtasks.filter(st => st.status === TASK_STATUS.IN_PROGRESS).length > 0 ? '(進行中あり)' : ''}</span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* サブタスクの追加フォーム */}
+                      <div className="mt-2 border-t pt-2">
+                        <div className="flex">
+                          <input
+                            type="text"
+                            placeholder="+ サブタスクを追加"
+                            className="text-sm w-full py-1 px-2 border rounded"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && e.target.value.trim()) {
+                                const inputValue = e.target.value;
+                                addSubtask(task.id, inputValue);
+                                e.target.value = '';
+                                // フォーカスを確実に維持するために少し遅延させる
+                                setTimeout(() => {
+                                  e.target.focus();
+                                }, 10);
+                                e.preventDefault(); // フォームのデフォルト送信を防止
+                              }
+                            }}
+                          />
+                        </div>
+                        
+                        {/* サブタスクのリスト表示 - 現在のカラムに対応するステータスのサブタスクだけを表示 */}
+                        {task.subtasks && getFilteredSubtasks(task, status).length > 0 && (
+                          <div className="mt-1 space-y-1">
+                            {getFilteredSubtasks(task, status).map(subtask => (
+                              <div key={subtask.id} className="flex items-center text-sm">
+                                <div className="flex items-center mr-2">
+                                  <button
+                                    onClick={() => promoteSubtask(task.id, subtask.id)}
+                                    className="text-gray-500 hover:text-gray-700 mr-1"
+                                    title="レベル上げ"
+                                    disabled={(subtask.level || 0) === 0}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => demoteSubtask(task.id, subtask.id)}
+                                    className="text-gray-500 hover:text-gray-700"
+                                    title="レベル下げ"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={subtask.completed}
+                                  onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                  className="mr-1"
+                                />
+                                <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                  style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
+                                  {subtask.text}
+                                </span>
+                                <div className="flex items-center">
+                                  <select
+                                    className="text-xs p-0 border rounded mr-1"
+                                    value={subtask.status || TASK_STATUS.TODO}
+                                    onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
+                                    style={{ maxWidth: '80px' }}
+                                  >
+                                    <option value={TASK_STATUS.TODO}>未着手</option>
+                                    <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                    <option value={TASK_STATUS.DONE}>完了</option>
+                                  </select>
+                                  <input
+                                    type="date"
+                                    className="text-xs p-0 border rounded mr-1"
+                                    value={subtask.dueDate || ''}
+                                    onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                                    style={{ width: '110px' }}
+                                  />
+                                  <button
+                                    onClick={() => deleteSubtask(task.id, subtask.id)}
+                                    className="text-red-500 hover:text-red-700 ml-1"
+                                    title="削除"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex mb-2">
-                            <label className="text-sm text-gray-600 mr-2 w-20">締め切り：</label>
-                            <input
-                              type="date"
-                              className="flex-grow p-1 border rounded"
-                              value={editDueDate}
-                              onChange={handleEditDueDateChange}
-                            />
-                          </div>
-                          <div className="flex">
-                            <label className="text-sm text-gray-600 mr-2 w-20">プロジェクト：</label>
-                            <input
-                              type="text"
-                              className="flex-grow p-1 border rounded"
-                              list="edit-project-list"
-                              defaultValue={editProject}
-                              ref={editProjectRef}
-                            />
-                            <datalist id="edit-project-list">
-                              {getProjects().map(project => (
-                                <option key={project} value={project} />
-                              ))}
-                            </datalist>
-                          </div>
-                        </form>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-800">{task.text}</span>
-                            <button
-                              onClick={() => setSelectedTask(task)}
-                              className="ml-2 text-blue-500 hover:text-blue-700"
-                              title="詳細を表示"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                            </button>
-                          </div>
-                          {task.dueDate && (
-                            <div className="text-sm text-gray-500 mt-1">
-                              締め切り: {new Date(task.dueDate).toLocaleDateString()}
-                            </div>
-                          )}
-                        </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col space-y-1 ml-2">
+                      <button
+                        className="text-sm text-blue-500 hover:text-blue-700"
+                        onClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
+                      >
+                        編集
+                      </button>
+                      <button
+                        className="text-sm text-green-500 hover:text-green-700"
+                        onClick={() => setSelectedTask(task)}
+                        title="詳細を表示"
+                      >
+                        <div className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          詳細
+                        </div>
+                      </button>
+                      <button
+                        className="text-sm text-red-500 hover:text-red-700"
+                        onClick={() => deleteTask(task.id)}
+                      >
+                        削除
+                      </button>
+                      {task.dueDate && (
+                        <button
+                          className={`text-xs flex items-center px-2 py-1 rounded border ${
+                            task.isCalendarAdded
+                              ? 'bg-green-100 text-green-700 border-green-200'
+                              : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                          }`}
+                          onClick={() => generateICSFile(task)}
+                          title={task.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>{task.isCalendarAdded ? "追加済み" : "予定追加"}</span>
+                        </button>
                       )}
                     </div>
                   </div>
