@@ -923,18 +923,16 @@ const TaskManagementApp = () => {
                         <button
                           className="text-sm text-green-500 hover:text-green-700"
                           onClick={() => {
-                            // 詳細ボタンを押したときは詳細モーダルとポップアップの両方を表示するのではなく
-                            // ポップアップのみを表示するように変更
-                            handleSetActiveTask(task);
+                            // 別ウィンドウで開く
+                            openTaskInNewWindow(task);
                           }}
-                          title="タスクをポップアップ表示"
+                          title="タスクを別ウィンドウで表示"
                         >
                           <div className="flex items-center">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
-                            ポップアップ
+                            別窓
                           </div>
                         </button>
                         <button
@@ -1126,18 +1124,16 @@ const TaskManagementApp = () => {
                       <button
                         className="text-sm text-green-500 hover:text-green-700"
                         onClick={() => {
-                          // 詳細ボタンを押したときは詳細モーダルとポップアップの両方を表示するのではなく
-                          // ポップアップのみを表示するように変更
-                          handleSetActiveTask(task);
+                          // 別ウィンドウで開く
+                          openTaskInNewWindow(task);
                         }}
-                        title="タスクをポップアップ表示"
+                        title="タスクを別ウィンドウで表示"
                       >
                         <div className="flex items-center">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
-                          ポップアップ
+                          別窓
                         </div>
                       </button>
                       <button
@@ -2256,6 +2252,98 @@ const TaskManagementApp = () => {
     setActiveTask(task);
   };
 
+  // 別ウィンドウでタスクを表示する関数
+  const openTaskInNewWindow = (task) => {
+    console.log("タスクを新しいウィンドウで開く:", task);
+    
+    // タスクデータをJSON文字列に変換してエンコード
+    const taskData = encodeURIComponent(JSON.stringify(task));
+    
+    // ウィンドウサイズと位置を設定
+    const width = 400;
+    const height = 600;
+    const left = window.screen.width - width;
+    const top = 100;
+    
+    // 新しいウィンドウを開く
+    const taskWindow = window.open(
+      `/kanbantask/taskpopup.html?taskData=${taskData}`,
+      `task_${task.id}`,
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,location=no,menubar=no,toolbar=no`
+    );
+    
+    // ウィンドウが開けなかった場合（ポップアップブロックなど）
+    if (!taskWindow || taskWindow.closed || typeof taskWindow.closed === 'undefined') {
+      alert('ポップアップがブロックされました。このサイトのポップアップを許可してください。');
+      return;
+    }
+    
+    // ウィンドウが読み込まれたらデータを送信
+    taskWindow.onload = function() {
+      try {
+        // データをウィンドウに送信
+        taskWindow.postMessage({ type: 'TASK_DATA', task: task }, '*');
+        
+        // ウィンドウが閉じられたことを検知
+        const checkClosed = setInterval(() => {
+          if (taskWindow.closed) {
+            clearInterval(checkClosed);
+            console.log('タスクウィンドウが閉じられました');
+          }
+        }, 500);
+      } catch (error) {
+        console.error('ウィンドウへのデータ送信エラー:', error);
+      }
+    };
+  };
+
+  // コンポーネントのマウント時にメッセージリスナーを追加
+  useEffect(() => {
+    // ポップアップウィンドウからのメッセージを処理するリスナー
+    const handlePopupMessage = (event) => {
+      const data = event.data;
+      console.log('ポップアップからメッセージを受信:', data);
+      
+      if (data.type === 'SUBTASK_UPDATED') {
+        // サブタスクの更新
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === data.taskId 
+              ? {
+                  ...task,
+                  subtasks: task.subtasks.map(subtask => 
+                    subtask.id === data.subtaskId
+                      ? { ...subtask, completed: data.completed, status: data.completed ? TASK_STATUS.DONE : TASK_STATUS.TODO }
+                      : subtask
+                  )
+                }
+              : task
+          )
+        );
+      } else if (data.type === 'TASK_UPDATED') {
+        // タスクのステータス更新
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === data.taskId 
+              ? { ...task, status: data.status }
+              : task
+          )
+        );
+      } else if (data.type === 'ADD_SUBTASK') {
+        // サブタスクの追加
+        addSubtask(data.taskId, data.text);
+      }
+    };
+    
+    // メッセージイベントリスナーを登録
+    window.addEventListener('message', handlePopupMessage);
+    
+    // クリーンアップ関数でリスナーを削除
+    return () => {
+      window.removeEventListener('message', handlePopupMessage);
+    };
+  }, []);
+
   return (
     <div className="w-screen min-h-screen p-4 bg-white rounded-lg shadow-lg max-w-none">
       <style>{customStyles}</style>
@@ -2449,12 +2537,12 @@ const TaskManagementApp = () => {
               const taskId = e.target.value;
               console.log("選択されたタスクID:", taskId);
               if (taskId) {
-                // ここで直接タスクを検索してアクティブにする
+                // 選択されたタスクを検索
                 const selectedTask = tasks.find(t => t.id === taskId);
                 console.log("選択されたタスク:", selectedTask);
                 if (selectedTask) {
-                  // アクティブタスクを直接設定
-                  setActiveTask(selectedTask);
+                  // 新しいウィンドウでタスクを開く
+                  openTaskInNewWindow(selectedTask);
                 }
               } else {
                 // 選択解除の場合
