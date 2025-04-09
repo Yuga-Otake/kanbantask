@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 const TaskManagementApp = () => {
   // 日付をフォーマットする関数
@@ -8,9 +8,10 @@ const TaskManagementApp = () => {
   };
 
   // .ics ファイルを生成する関数
-  const generateICSFile = (task) => {
+  const generateICSFile = (task, isSubtask = false, subtask = null) => {
     // タスクに締め切りがない場合は処理しない
-    if (!task.dueDate) {
+    const dueDate = isSubtask ? subtask.dueDate : task.dueDate;
+    if (!dueDate) {
       alert('このタスクには締め切り日が設定されていません。');
       return;
     }
@@ -19,43 +20,45 @@ const TaskManagementApp = () => {
     const now = new Date();
     const timeStamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/g, '');
     
-  // 締め切り日を処理
-  const dueDate = new Date(task.dueDate);
-  
-  // 終日予定の場合、日付だけを取得して"YYYYMMDD"形式にする
-  const dueDateFormatted = dueDate.toISOString().split('T')[0].replace(/-/g, '');
-  
-  // 終了日は開始日の翌日（Outlookの終日予定の仕様に合わせる）
-  const endDate = new Date(dueDate);
-  endDate.setDate(endDate.getDate() + 1);
-  const endDateFormatted = endDate.toISOString().split('T')[0].replace(/-/g, '');
-  
-  // ユニークIDの生成
-  const uid = `${timeStamp}-${Math.floor(Math.random() * 1000000)}@kanban-task-app`;
-  
-  // タイトルの整形
-  const title = task.title.replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
-  const projectInfo = task.project ? `[${task.project}] ` : '';
-  
-  // .ics ファイルの内容を生成
-  let icsContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Kanban Task App//JP',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    `UID:${uid}`,
-    `DTSTAMP:${timeStamp.substring(0, 8)}T${timeStamp.substring(8, 14)}Z`,
-    `DTSTART;VALUE=DATE:${dueDateFormatted}`,
-    `DTEND;VALUE=DATE:${endDateFormatted}`,
-    `SUMMARY:${projectInfo}${title}`,
-    'TRANSP:TRANSPARENT',
-    `DESCRIPTION:Kanban Task App からエクスポートされたタスク\\n\\n状態: ${
-      task.status === 'todo' ? '未着手' : task.status === 'in-progress' ? '進行中' : '完了'
-    }`,
-    'CLASS:PUBLIC',
-    'STATUS:CONFIRMED',
+    // 締め切り日を処理
+    const dueDateObj = new Date(dueDate);
+    
+    // 終日予定の場合、日付だけを取得して"YYYYMMDD"形式にする
+    const dueDateFormatted = dueDateObj.toISOString().split('T')[0].replace(/-/g, '');
+    
+    // 終了日は開始日の翌日（Outlookの終日予定の仕様に合わせる）
+    const endDate = new Date(dueDateObj);
+    endDate.setDate(endDate.getDate() + 1);
+    const endDateFormatted = endDate.toISOString().split('T')[0].replace(/-/g, '');
+    
+    // ユニークIDの生成
+    const uid = `${timeStamp}-${isSubtask ? subtask.id : task.id}@kanban-task-app`;
+    
+    // タイトルの整形
+    const title = isSubtask ? subtask.text : task.title;
+    const formattedTitle = title.replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
+    const projectInfo = task.project ? `[${task.project}] ` : '';
+    
+    // .ics ファイルの内容を生成
+    let icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Kanban Task App//JP',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${timeStamp.substring(0, 8)}T${timeStamp.substring(8, 14)}Z`,
+      `DTSTART;VALUE=DATE:${dueDateFormatted}`,
+      `DTEND;VALUE=DATE:${endDateFormatted}`,
+      `SUMMARY:${projectInfo}${formattedTitle}`,
+      'TRANSP:TRANSPARENT',
+      `DESCRIPTION:Kanban Task App からエクスポートされた${isSubtask ? 'サブタスク' : 'タスク'}\\n\\n状態: ${
+        isSubtask ? (subtask.status === 'todo' ? '未着手' : subtask.status === 'in-progress' ? '進行中' : '完了')
+        : (task.status === 'todo' ? '未着手' : task.status === 'in-progress' ? '進行中' : '完了')
+      }`,
+      'CLASS:PUBLIC',
+      'STATUS:CONFIRMED',
       'END:VEVENT',
       'END:VCALENDAR'
     ].join('\r\n');
@@ -66,11 +69,37 @@ const TaskManagementApp = () => {
     const link = document.createElement('a');
     link.href = url;
     // ファイル名にタスク名と日付を含める
-    const fileName = `${task.title.substring(0, 30).replace(/[/\\?%*:|"<>]/g, '-')}_${dueDateFormatted}.ics`;
+    const fileName = `${title.substring(0, 30).replace(/[/\\?%*:|"<>]/g, '-')}_${dueDateFormatted}.ics`;
     link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // 予定表追加状態を更新
+    if (isSubtask) {
+      setTasks(prevTasks =>
+        prevTasks.map(t =>
+          t.id === task.id
+            ? {
+                ...t,
+                subtasks: t.subtasks.map(st =>
+                  st.id === subtask.id
+                    ? { ...st, isCalendarAdded: true }
+                    : st
+                )
+              }
+            : t
+        )
+      );
+    } else {
+      setTasks(prevTasks =>
+        prevTasks.map(t =>
+          t.id === task.id
+            ? { ...t, isCalendarAdded: true }
+            : t
+        )
+      );
+    }
   };
 
   // 締め切り日に基づいてスタイルクラスを返す関数
@@ -122,8 +151,9 @@ const TaskManagementApp = () => {
     if (savedTasks) {
       const parsedTasks = JSON.parse(savedTasks);
       // 既存のタスクにcomments配列とsubtasks配列を追加
-      return parsedTasks.map(task => ({
+      return parsedTasks.map((task, index) => ({
         ...task,
+        order: task.order || index, // orderプロパティがなければindexをorderとして追加
         comments: task.comments || [],
         subtasks: task.subtasks ? task.subtasks.map(subtask => ({
           ...subtask,
@@ -133,6 +163,15 @@ const TaskManagementApp = () => {
     }
     return [];
   });
+  // プロジェクトの順序を管理するための状態
+  const [projectOrder, setProjectOrder] = useState(() => {
+    const savedProjectOrder = localStorage.getItem('projectOrder');
+    if (savedProjectOrder) {
+      return JSON.parse(savedProjectOrder);
+    }
+    return {};
+  });
+  const [draggedProject, setDraggedProject] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [newTaskProject, setNewTaskProject] = useState('');
@@ -157,33 +196,117 @@ const TaskManagementApp = () => {
     console.log('Verified saved tasks:', savedTasks);
   }, [tasks]);
 
-  // プロジェクトリストの取得
-  const getProjects = () => {
-    const projects = tasks
+  // プロジェクトの順序をローカルストレージに保存
+  useEffect(() => {
+    if (Object.keys(projectOrder).length > 0) {
+      localStorage.setItem('projectOrder', JSON.stringify(projectOrder));
+      console.log('Saved project order:', projectOrder);
+    }
+  }, [projectOrder]);
+
+  // タスクが変更されたときにプロジェクトの順序を再計算
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const newOrder = recalculateProjectOrder();
+      console.log('Recalculated project order after task change:', newOrder);
+    }
+  }, [tasks]);
+
+  // プロジェクトの順序を再計算する関数
+  const recalculateProjectOrder = () => {
+    const allProjects = [...new Set(tasks
       .map(task => task.project)
       .filter(project => project && project.trim() !== '')
-      .filter((project, index, self) => self.indexOf(project) === index) // 重複除去
-      .sort();
-    return projects;
+    )];
+    
+    // 既存の順序を保持しつつ、新しいプロジェクトには順序を割り当てる
+    const newOrder = {};
+    const usedOrders = new Set();
+    
+    // まず既存の順序を持つプロジェクトを処理
+    allProjects.forEach(project => {
+      if (projectOrder[project] !== undefined) {
+        // 既存の順序が重複していないことを確認
+        if (!usedOrders.has(projectOrder[project])) {
+          newOrder[project] = projectOrder[project];
+          usedOrders.add(projectOrder[project]);
+        }
+      }
+    });
+    
+    // 次に未定義の順序を持つプロジェクトに新しい順序を割り当て
+    let currentOrder = 0;
+    allProjects.forEach(project => {
+      if (newOrder[project] === undefined) {
+        // 使用されていない最小の順序を探す
+        while (usedOrders.has(currentOrder)) {
+          currentOrder++;
+        }
+        newOrder[project] = currentOrder;
+        usedOrders.add(currentOrder);
+        currentOrder++;
+      }
+    });
+    
+    // 重複しているプロジェクトの順序を再割り当て
+    allProjects.forEach(project => {
+      if (usedOrders.has(newOrder[project])) {
+        // 使用されていない最小の順序を探す
+        while (usedOrders.has(currentOrder)) {
+          currentOrder++;
+        }
+        newOrder[project] = currentOrder;
+        usedOrders.add(currentOrder);
+        currentOrder++;
+      }
+    });
+    
+    console.log('Recalculated project order:', newOrder);
+    setProjectOrder(newOrder);
+    return newOrder;
+  };
+
+  // プロジェクトリストの取得（順序を考慮）
+  const getProjects = () => {
+    // すべてのプロジェクト名を取得（重複なし）
+    const projectNames = tasks
+      .map(task => task.project || 'その他')  // プロジェクト名がない場合は「その他」として扱う
+      .filter(project => project.trim() !== '')
+      .filter((project, index, self) => self.indexOf(project) === index);
+    
+    // 順序情報でソート
+    return projectNames.sort((a, b) => {
+      const orderA = projectOrder[a] || Number.MAX_SAFE_INTEGER;
+      const orderB = projectOrder[b] || Number.MAX_SAFE_INTEGER;
+      if (orderA === orderB) {
+        return a.localeCompare(b); // 順序が同じ場合はアルファベット順
+      }
+      return orderA - orderB;
+    });
   };
 
   // 新しいタスクを追加
   const addTask = () => {
     if (newTaskTitle.trim() === '') return;
     
-    const newTask = {
-      id: Date.now(),
-      title: newTaskTitle,
-      status: TASK_STATUS.TODO,
-      dueDate: newTaskDueDate || null,
+    // 同じステータスの最大orderを取得
+    const maxOrder = Math.max(...tasks.filter(t => t.status === TASK_STATUS.TODO).map(t => t.order || 0), -1) + 1;
+    
+      const newTask = {
+        id: Date.now(),
+        title: newTaskTitle,
+        status: TASK_STATUS.TODO,
+        dueDate: newTaskDueDate || null,
       project: newTaskProject,
       createdAt: new Date().toISOString(),
       comments: [],
       subtasks: [],
+      order: maxOrder, // 同じステータスの最後に追加
+      isCalendarAdded: false, // 予定表追加状態を追加
     };
     
     setTasks([...tasks, newTask]);
-    setNewTaskTitle('');
+      setNewTaskTitle('');
     
     // タスク追加後にフォーカスを新しいタスク入力に戻す
     if (taskInputRef.current) {
@@ -201,6 +324,9 @@ const TaskManagementApp = () => {
 
   // 空のタスクを特定のステータスで追加
   const addEmptyTask = (status) => {
+    // 同じステータスの最大orderを取得
+    const maxOrder = Math.max(...tasks.filter(t => t.status === status).map(t => t.order || 0), -1) + 1;
+    
     const newTask = {
       id: Date.now(),
       title: `新しいタスク ${new Date().toLocaleTimeString()}`,
@@ -210,6 +336,7 @@ const TaskManagementApp = () => {
       project: null,
       comments: [],
       subtasks: [], // サブタスク配列を追加
+      order: maxOrder, // 同じステータスの最後に追加
     };
     setTasks(prevTasks => [...prevTasks, newTask]);
     
@@ -301,9 +428,16 @@ const TaskManagementApp = () => {
 
   // タスクの状態を更新
   const updateTaskStatus = (id, newStatus) => {
+    // 移動先のステータスの最大orderを取得
+    const maxOrder = Math.max(...tasks.filter(t => t.status === newStatus).map(t => t.order || 0), -1) + 1;
+    
     setTasks(
       tasks.map(task =>
-        task.id === id ? { ...task, status: newStatus } : task
+        task.id === id ? { 
+          ...task, 
+          status: newStatus,
+          order: maxOrder // 移動先の最後に配置
+        } : task
       )
     );
   };
@@ -381,11 +515,15 @@ const TaskManagementApp = () => {
     setDraggedTask(null);
   };
 
-  // ドロップハンドラー
-  const handleDrop = (status) => {
-    if (draggedTask !== null) {
-      updateTaskStatus(draggedTask, status);
-    }
+  // タスクドロップハンドラーを追加
+  const handleTaskDrop = (targetTaskId) => {
+    if (draggedTask === null || draggedTask === targetTaskId) return;
+    
+    // 同じタスク内での並び替え
+    reorderTasks(draggedTask, targetTaskId);
+    
+    // ドラッグ状態をリセット
+    setDraggedTask(null);
   };
 
   // ドラッグオーバーハンドラー
@@ -410,19 +548,19 @@ const TaskManagementApp = () => {
       }
       return true;
     });
-
-    // プロジェクトフィルター
+      
+      // プロジェクトフィルター
     if (projectFilter !== 'all') {
       result = result.filter(task => task.project === projectFilter);
-    }
-
+      }
+      
     // 他のフィルター条件
-    if (filter === 'due-soon') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      if (filter === 'due-soon') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
       const threeDaysLater = new Date(today);
       threeDaysLater.setDate(today.getDate() + 3);
-      
+        
       result = result.filter(task => {
         if (!task.dueDate) return false;
         
@@ -432,9 +570,9 @@ const TaskManagementApp = () => {
         return dueDate >= today && dueDate <= threeDaysLater;
       });
     } else if (filter === 'overdue') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
       result = result.filter(task => {
         if (!task.dueDate) return false;
         
@@ -445,13 +583,17 @@ const TaskManagementApp = () => {
       });
     }
     
+    // orderでソート
+    result.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
     return result;
   };
 
   // サブタスクをフィルタリングする関数を追加
   const getFilteredSubtasks = (task, status) => {
     if (!task.subtasks || task.subtasks.length === 0) return [];
-    return task.subtasks.filter(subtask => subtask.status === status);
+    const filteredSubtasks = task.subtasks.filter(subtask => subtask.status === status);
+    return sortSubtasksByDueDate(filteredSubtasks);
   };
 
   // カンバンカラムコンポーネント
@@ -473,8 +615,21 @@ const TaskManagementApp = () => {
       setIsDragOver(false);
       
       if (draggedTask !== null) {
-        // ドロップ先のステータスに更新
-        updateTaskStatus(draggedTask, status);
+        const draggedTaskObj = tasks.find(t => t.id === draggedTask);
+        
+        // ドラッグしたタスクが現在のステータスと異なる場合はステータスを更新
+        if (!draggedTaskObj || draggedTaskObj.status !== status) {
+          // ステータス変更（横方向のドラッグ）
+          updateTaskStatus(draggedTask, status);
+        } else {
+          // 同じステータス内で最後尾に配置
+          const maxOrder = Math.max(...tasks.map(task => task.order || 0), -1) + 1;
+          setTasks(prevTasks => 
+            prevTasks.map(task => 
+              task.id === draggedTask ? { ...task, order: maxOrder } : task
+            )
+          );
+        }
       }
       
       // ドラッグ状態をリセット
@@ -484,9 +639,9 @@ const TaskManagementApp = () => {
     // タスクをプロジェクト別にグループ化
     const groupTasksByProject = () => {
       const grouped = {};
-      
+    
       tasks.forEach(task => {
-        const projectName = task.project || 'No Project';
+        const projectName = task.project || 'その他';
         if (!grouped[projectName]) {
           grouped[projectName] = [];
         }
@@ -501,13 +656,23 @@ const TaskManagementApp = () => {
     const noProjectTasks = groupedTasks['No Project'] || [];
     delete groupedTasks['No Project']; // 「プロジェクトなし」を別に表示するため削除
     
+    // プロジェクトの順序を考慮して並べ替え
+    const orderedProjects = Object.keys(groupedTasks).sort((a, b) => {
+      const orderA = projectOrder[a] !== undefined ? projectOrder[a] : Number.MAX_SAFE_INTEGER;
+      const orderB = projectOrder[b] !== undefined ? projectOrder[b] : Number.MAX_SAFE_INTEGER;
+      if (orderA === orderB) {
+        return a.localeCompare(b);
+      }
+      return orderA - orderB;
+    });
+    
     // ドロップ領域のスタイルを動的に設定
     const dropAreaClasses = `p-2 rounded-lg shadow-inner bg-opacity-50 min-h-[200px] column-transition ${
       isDragOver 
       ? 'bg-blue-100 border-2 border-dashed border-blue-300' 
       : 'bg-gray-100'
     }`;
-
+    
     return (
       <div className="w-1/3 px-2 max-w-md">
         <div className="bg-white rounded-t-lg p-3 shadow-md">
@@ -527,13 +692,21 @@ const TaskManagementApp = () => {
         
         <div
           className={dropAreaClasses}
-          onDragOver={handleDragOver}
+        onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           {/* プロジェクト別グループ */}
-          {Object.keys(groupedTasks).sort().map(projectName => (
-            <div key={projectName} className="mb-3">
+          {orderedProjects.map(projectName => (
+            <div 
+              key={projectName} 
+              className="mb-3"
+              draggable
+              onDragStart={(e) => handleProjectDragStart(projectName, e)}
+              onDragEnd={handleProjectDragEnd}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleProjectDrop(projectName)}
+            >
               <div 
                 className="bg-gray-200 p-2 rounded-md mb-2"
                 style={{ 
@@ -542,7 +715,45 @@ const TaskManagementApp = () => {
                   textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
                 }}
               >
-                <h3 className="font-medium">{projectName}</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="mr-2 text-gray-100 cursor-move" title="ドラッグして並べ替え">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                      </svg>
+              </div>
+                    <h3 className="font-medium">{projectName}</h3>
+                    <span className="ml-2 text-xs opacity-75">順序: {projectOrder[projectName] || '未設定'}</span>
+                  </div>
+                  <div className="flex space-x-1">
+                    <button
+                      className="bg-white bg-opacity-20 rounded p-1 hover:bg-opacity-30 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveProjectUp(projectName, status);
+                      }}
+                      title="上に移動"
+                      disabled={orderedProjects.indexOf(projectName) === 0}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      className="bg-white bg-opacity-20 rounded p-1 hover:bg-opacity-30 transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveProjectDown(projectName, status);
+                      }}
+                      title="下に移動"
+                      disabled={orderedProjects.indexOf(projectName) === orderedProjects.length - 1}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 {groupedTasks[projectName].map(task => (
@@ -551,6 +762,8 @@ const TaskManagementApp = () => {
                     draggable
                     onDragStart={(e) => handleDragStart(task.id, e)}
                     onDragEnd={handleDragEnd}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleTaskDrop(task.id)}
                     className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                   >
                     {editingId === task.id ? (
@@ -597,19 +810,29 @@ const TaskManagementApp = () => {
                       </form>
                     ) : (
                       <div className="flex items-start">
+                        <div className="mr-2 flex items-center">
+                          <div className="h-full flex flex-col justify-center mr-1 cursor-grab text-gray-400" title="ドラッグして並べ替え">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                            </svg>
+                          </div>
                         <input
                           type="checkbox"
                           checked={task.status === TASK_STATUS.DONE}
                           onChange={() => updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE)}
-                          className="mr-2 mt-1"
+                            className="mt-1"
                         />
+                        </div>
                         <div className="flex-grow flex flex-col">
+                          <div className="flex justify-between">
                           <span
                             className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
                             onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
                           >
                             {task.title}
                           </span>
+                            <span className="text-xs text-gray-400 ml-2">順序: {task.order}</span>
+                          </div>
                           <div className="flex flex-nowrap items-center gap-2 mt-1">
                             {task.dueDate && (
                               <span className={`text-xs ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
@@ -743,14 +966,18 @@ const TaskManagementApp = () => {
                           </button>
                           {task.dueDate && (
                             <button
-                              className="text-xs text-purple-500 hover:text-purple-700 flex items-center px-2 py-1 rounded border border-purple-200 hover:bg-purple-50"
+                              className={`text-xs flex items-center px-2 py-1 rounded border ${
+                                task.isCalendarAdded
+                                  ? 'bg-green-100 text-green-700 border-green-200'
+                                  : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                              }`}
                               onClick={() => generateICSFile(task)}
-                              title="Outlookカレンダーに追加"
+                              title={task.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              <span>予定追加</span>
+                              <span>{task.isCalendarAdded ? "追加済み" : "予定追加"}</span>
                             </button>
                           )}
                         </div>
@@ -771,6 +998,8 @@ const TaskManagementApp = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(task.id, e)}
                   onDragEnd={handleDragEnd}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleTaskDrop(task.id)}
                   className="bg-white p-3 rounded-lg shadow-lg cursor-move task-card hover:shadow-xl transition-shadow duration-200"
                 >
                   {editingId === task.id ? (
@@ -817,19 +1046,29 @@ const TaskManagementApp = () => {
                     </form>
                   ) : (
                     <div className="flex items-start">
+                      <div className="mr-2 flex items-center">
+                        <div className="h-full flex flex-col justify-center mr-1 cursor-grab text-gray-400" title="ドラッグして並べ替え">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                          </svg>
+                        </div>
                       <input
                         type="checkbox"
                         checked={task.status === TASK_STATUS.DONE}
                         onChange={() => updateTaskStatus(task.id, task.status === TASK_STATUS.DONE ? TASK_STATUS.TODO : TASK_STATUS.DONE)}
-                        className="mr-2 mt-1"
+                          className="mt-1"
                       />
+                      </div>
                       <div className="flex-grow flex flex-col">
+                        <div className="flex justify-between">
                         <span
                           className={`${task.status === TASK_STATUS.DONE ? 'line-through text-gray-400' : ''}`}
                           onDoubleClick={() => startEditing(task.id, task.title, task.dueDate, task.project)}
                         >
                           {task.title}
                         </span>
+                          <span className="text-xs text-gray-400 ml-2">順序: {task.order}</span>
+                        </div>
                         <div className="flex flex-nowrap items-center gap-2 mt-1">
                           {task.dueDate && (
                             <span className={`text-xs ${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
@@ -908,6 +1147,34 @@ const TaskManagementApp = () => {
                                     style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
                                     {subtask.text}
                                   </span>
+                                  <div className="flex items-center">
+                                    <select
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.status || TASK_STATUS.TODO}
+                                      onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
+                                      style={{ maxWidth: '80px' }}
+                                    >
+                                      <option value={TASK_STATUS.TODO}>未着手</option>
+                                      <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                      <option value={TASK_STATUS.DONE}>完了</option>
+                                    </select>
+                                    <input
+                                      type="date"
+                                      className="text-xs p-0 border rounded mr-1"
+                                      value={subtask.dueDate || ''}
+                                      onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
+                                      style={{ width: '110px' }}
+                                    />
+                                    <button
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-1"
+                                      title="削除"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -935,14 +1202,18 @@ const TaskManagementApp = () => {
                         </button>
                         {task.dueDate && (
                           <button
-                            className="text-xs text-purple-500 hover:text-purple-700 flex items-center px-2 py-1 rounded border border-purple-200 hover:bg-purple-50"
+                            className={`text-xs flex items-center px-2 py-1 rounded border ${
+                              task.isCalendarAdded
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                            }`}
                             onClick={() => generateICSFile(task)}
-                            title="Outlookカレンダーに追加"
+                            title={task.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span>予定追加</span>
+                            <span>{task.isCalendarAdded ? "追加済み" : "予定追加"}</span>
                           </button>
                         )}
                       </div>
@@ -1093,6 +1364,7 @@ const TaskManagementApp = () => {
                     createdAt: new Date().toISOString(),
                     dueDate: null,
                     level: 0, // デフォルトのレベルは0（最上位）
+                    isCalendarAdded: false, // 予定表追加状態を追加
                   },
                 ],
               }
@@ -1211,6 +1483,69 @@ const TaskManagementApp = () => {
             }
           : task
       )
+    );
+  };
+
+  // サブタスクを締め切り日順にソート
+  const sortSubtasksByDueDate = (subtasks) => {
+    if (!subtasks || subtasks.length === 0) return [];
+    
+    return [...subtasks].sort((a, b) => {
+      // 締め切り日が設定されていない場合は後ろに
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      
+      // 締め切り日順（昇順）
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
+  };
+
+  // タスクを並べ替える関数を追加
+  const reorderTasks = (draggedTaskId, targetTaskId) => {
+    // ドラッグ中のタスクと対象タスクを取得
+    const draggedTask = tasks.find(task => task.id === draggedTaskId);
+    const targetTask = tasks.find(task => task.id === targetTaskId);
+    
+    if (!draggedTask || !targetTask || draggedTask.id === targetTask.id) {
+      return;
+    }
+    
+    // 同じステータス内での並べ替えのみ許可
+    if (draggedTask.status !== targetTask.status) {
+      return;
+    }
+    
+    // 同じステータスのタスクをorder順に取得
+    const tasksInSameStatus = tasks
+      .filter(task => task.status === draggedTask.status)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    // ドラッグしたタスクを除外
+    const tasksWithoutDragged = tasksInSameStatus.filter(task => task.id !== draggedTaskId);
+    
+    // 挿入位置を特定
+    const targetIndex = tasksWithoutDragged.findIndex(task => task.id === targetTaskId);
+    if (targetIndex === -1) return;
+    
+    // 挿入位置にドラッグしたタスクを挿入
+    tasksWithoutDragged.splice(targetIndex, 0, draggedTask);
+    
+    // orderを再計算
+    const updatedTasks = tasksWithoutDragged.map((task, index) => ({
+      ...task,
+      order: index
+    }));
+    
+    // 状態を更新
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        const updatedTask = updatedTasks.find(t => t.id === task.id);
+        if (updatedTask) {
+          return updatedTask;
+        }
+        return task;
+      })
     );
   };
 
@@ -1376,7 +1711,7 @@ const TaskManagementApp = () => {
                       未着手 ({groupedSubtasks[TASK_STATUS.TODO].length})
                     </div>
                     <div className="divide-y divide-gray-200">
-                      {groupedSubtasks[TASK_STATUS.TODO].map(subtask => (
+                      {sortSubtasksByDueDate(groupedSubtasks[TASK_STATUS.TODO]).map(subtask => (
                         <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
                           <div className="flex items-center flex-grow">
                             <div className="flex items-center mr-2">
@@ -1449,7 +1784,7 @@ const TaskManagementApp = () => {
                       進行中 ({groupedSubtasks[TASK_STATUS.IN_PROGRESS].length})
                     </div>
                     <div className="divide-y divide-gray-200">
-                      {groupedSubtasks[TASK_STATUS.IN_PROGRESS].map(subtask => (
+                      {sortSubtasksByDueDate(groupedSubtasks[TASK_STATUS.IN_PROGRESS]).map(subtask => (
                         <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
                           <div className="flex items-center flex-grow">
                             <div className="flex items-center mr-2">
@@ -1522,7 +1857,7 @@ const TaskManagementApp = () => {
                       完了 ({groupedSubtasks[TASK_STATUS.DONE].length})
                     </div>
                     <div className="divide-y divide-gray-200">
-                      {groupedSubtasks[TASK_STATUS.DONE].map(subtask => (
+                      {sortSubtasksByDueDate(groupedSubtasks[TASK_STATUS.DONE]).map(subtask => (
                         <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
                           <div className="flex items-center flex-grow">
                             <div className="flex items-center mr-2">
@@ -1636,6 +1971,190 @@ const TaskManagementApp = () => {
         </div>
       </div>
     );
+  };
+
+  // プロジェクトのドラッグ開始ハンドラー
+  const handleProjectDragStart = (projectName, e) => {
+    setDraggedProject(projectName);
+    
+    // ドラッグ中のプレビュー画像を設定
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try {
+        const dragImg = document.createElement('div');
+        dragImg.style.width = '5px';
+        dragImg.style.height = '5px';
+        dragImg.style.backgroundColor = 'transparent';
+        document.body.appendChild(dragImg);
+        e.dataTransfer.setDragImage(dragImg, 0, 0);
+        setTimeout(() => {
+          document.body.removeChild(dragImg);
+        }, 0);
+      } catch (err) {
+        console.error("Failed to set drag image", err);
+      }
+    }
+  };
+  
+  // プロジェクトのドラッグ終了ハンドラー
+  const handleProjectDragEnd = () => {
+    setDraggedProject(null);
+  };
+  
+  // プロジェクトのドロップハンドラー
+  const handleProjectDrop = (targetProject) => {
+    if (!draggedProject || draggedProject === targetProject) return;
+    
+    const projects = getProjects();
+    
+    // 現在の順序を取得
+    const currentOrder = { ...projectOrder };
+    
+    // ドラッグしたプロジェクトと対象プロジェクトのインデックスを取得
+    const draggedIndex = projects.indexOf(draggedProject);
+    const targetIndex = projects.indexOf(targetProject);
+    
+    if (draggedIndex === -1 || targetIndex === -1) return;
+    
+    // プロジェクトの位置を入れ替え
+    const newProjects = [...projects];
+    newProjects.splice(draggedIndex, 1);
+    newProjects.splice(targetIndex, 0, draggedProject);
+    
+    // 新しい順序を設定
+    const newOrder = {};
+    newProjects.forEach((project, index) => {
+      newOrder[project] = index;
+    });
+    
+    setProjectOrder(newOrder);
+    setDraggedProject(null);
+  };
+
+  // プロジェクトを上に移動
+  const moveProjectUp = (projectName, status) => {
+    console.log('moveProjectUp called for project:', projectName, 'in status:', status);
+    
+    // 現在のカラムで表示されているプロジェクトを取得
+    const filteredTasks = getFilteredTasks(status);
+    const projectsInColumn = [...new Set(filteredTasks.map(task => task.project))]
+      .filter(project => project && project.trim() !== '');
+    
+    // 現在の順序を取得
+    const currentProjectOrder = { ...projectOrder };
+    console.log('Current project order:', currentProjectOrder);
+    console.log('Projects in this column:', projectsInColumn);
+    
+    // カラム内でのプロジェクトの位置を取得
+    const sortedProjects = projectsInColumn.sort((a, b) => {
+      // 順序が未定義の場合は、とりあえず大きな値を設定
+      const orderA = currentProjectOrder[a] !== undefined ? currentProjectOrder[a] : Number.MAX_SAFE_INTEGER;
+      const orderB = currentProjectOrder[b] !== undefined ? currentProjectOrder[b] : Number.MAX_SAFE_INTEGER;
+      if (orderA === orderB) {
+        return a.localeCompare(b);
+      }
+      return orderA - orderB;
+    });
+    
+    const index = sortedProjects.indexOf(projectName);
+    console.log('Project index in sorted list:', index);
+    
+    // すでに最上部にある場合は何もしない
+    if (index <= 0) {
+      console.log('Project already at the top');
+      return;
+    }
+    
+    // 1つ上のプロジェクトと順序を入れ替え
+    const projectAbove = sortedProjects[index - 1];
+    console.log('Swapping with project above:', projectAbove);
+    
+    // 新しい順序を設定
+    const newOrder = { ...currentProjectOrder };
+    
+    // 順序が未定義の場合は、まず順序を初期化
+    if (newOrder[projectName] === undefined && newOrder[projectAbove] === undefined) {
+      // 両方未定義の場合
+      newOrder[projectName] = 0;
+      newOrder[projectAbove] = 1;
+    } else if (newOrder[projectName] === undefined) {
+      // 移動するプロジェクトのみ未定義の場合
+      newOrder[projectName] = newOrder[projectAbove] - 1;
+    } else if (newOrder[projectAbove] === undefined) {
+      // 上のプロジェクトのみ未定義の場合
+      newOrder[projectAbove] = newOrder[projectName] + 1;
+    } else {
+      // 両方定義済みの場合は順序を入れ替え
+      const tempOrder = newOrder[projectName];
+      newOrder[projectName] = newOrder[projectAbove];
+      newOrder[projectAbove] = tempOrder;
+    }
+    
+    console.log('New project order after swap:', newOrder);
+    setProjectOrder(newOrder);
+  };
+  
+  // プロジェクトを下に移動
+  const moveProjectDown = (projectName, status) => {
+    console.log('moveProjectDown called for project:', projectName, 'in status:', status);
+    
+    // 現在のカラムで表示されているプロジェクトを取得
+    const filteredTasks = getFilteredTasks(status);
+    const projectsInColumn = [...new Set(filteredTasks.map(task => task.project))]
+      .filter(project => project && project.trim() !== '');
+    
+    // 現在の順序を取得
+    const currentProjectOrder = { ...projectOrder };
+    console.log('Current project order:', currentProjectOrder);
+    console.log('Projects in this column:', projectsInColumn);
+    
+    // カラム内でのプロジェクトの位置を取得
+    const sortedProjects = projectsInColumn.sort((a, b) => {
+      // 順序が未定義の場合は、とりあえず大きな値を設定
+      const orderA = currentProjectOrder[a] !== undefined ? currentProjectOrder[a] : Number.MAX_SAFE_INTEGER;
+      const orderB = currentProjectOrder[b] !== undefined ? currentProjectOrder[b] : Number.MAX_SAFE_INTEGER;
+      if (orderA === orderB) {
+        return a.localeCompare(b);
+      }
+      return orderA - orderB;
+    });
+    
+    const index = sortedProjects.indexOf(projectName);
+    console.log('Project index in sorted list:', index);
+    
+    // すでに最下部にある場合は何もしない
+    if (index >= sortedProjects.length - 1) {
+      console.log('Project already at the bottom');
+      return;
+    }
+    
+    // 1つ下のプロジェクトと順序を入れ替え
+    const projectBelow = sortedProjects[index + 1];
+    console.log('Swapping with project below:', projectBelow);
+    
+    // 新しい順序を設定
+    const newOrder = { ...currentProjectOrder };
+    
+    // 順序が未定義の場合は、まず順序を初期化
+    if (newOrder[projectName] === undefined && newOrder[projectBelow] === undefined) {
+      // 両方未定義の場合
+      newOrder[projectName] = 1;
+      newOrder[projectBelow] = 0;
+    } else if (newOrder[projectName] === undefined) {
+      // 移動するプロジェクトのみ未定義の場合
+      newOrder[projectName] = newOrder[projectBelow] + 1;
+    } else if (newOrder[projectBelow] === undefined) {
+      // 下のプロジェクトのみ未定義の場合
+      newOrder[projectBelow] = newOrder[projectName] - 1;
+    } else {
+      // 両方定義済みの場合は順序を入れ替え
+      const tempOrder = newOrder[projectName];
+      newOrder[projectName] = newOrder[projectBelow];
+      newOrder[projectBelow] = tempOrder;
+    }
+    
+    console.log('New project order after swap:', newOrder);
+    setProjectOrder(newOrder);
   };
 
   return (
