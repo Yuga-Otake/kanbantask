@@ -188,7 +188,6 @@ const TaskManagementApp = () => {
   const [commentInputs, setCommentInputs] = useState({});
   const taskInputRef = React.useRef(null);
   const [activeTask, setActiveTask] = useState(null);
-  const [showTaskPopup, setShowTaskPopup] = useState(false);
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -2228,46 +2227,8 @@ const TaskManagementApp = () => {
 
   // フローティングタスクを設定する関数
   const handleSetActiveTask = (task) => {
-    // 既にそのタスクがアクティブならクリア、そうでなければ設定
-    setActiveTask(prev => prev && prev.id === task.id ? null : task);
-  };
-
-  // タスクポップアップコンポーネント
-  const TaskPopup = ({ task, onClose }) => {
-    if (!task) return null;
-
-    return (
-      <div className="fixed bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border-2 border-blue-500 z-50 max-w-md">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg">{task.title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-        <div className="space-y-2">
-          {task.project && (
-            <div className="text-sm">
-              <span className="font-semibold">プロジェクト：</span>
-              <span>{task.project}</span>
-            </div>
-          )}
-          {task.dueDate && (
-            <div className="text-sm">
-              <span className="font-semibold">期限：</span>
-              <span className={getDueDateClassName(task.dueDate, false)}>{formatDate(task.dueDate)}</span>
-            </div>
-          )}
-          {task.subtasks && task.subtasks.length > 0 && (
-            <div className="text-sm">
-              <span className="font-semibold">サブタスク進捗：</span>
-              <span>{task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    console.log("アクティブタスクを設定:", task);
+    setActiveTask(task);
   };
 
   return (
@@ -2412,25 +2373,25 @@ const TaskManagementApp = () => {
         />
       </div>
 
-      {/* 操作ガイド */}
-      <div className="mt-4 bg-blue-50 p-3 rounded text-sm text-blue-700">
-        <p>使い方: タスクカードを横方向にドラッグ＆ドロップして状態を変更できます。カードをつかんで左右に移動してみましょう。</p>
-        <p className="mt-1">カレンダー連携: 各タスクの「予定追加」ボタンをクリックすると.icsファイルがダウンロードされ、Outlookなどのカレンダーに予定として追加できます。</p>
-      </div>
-      
-      {/* フッター情報 */}
-      <div className="mt-4 text-center text-sm text-gray-500">
-        {(() => {
-          const stats = getTaskStats();
-          return (
-            <p>
-              タスク数: {stats.total}個 
-              (未着手: {stats.todo}、
-              進行中: {stats.inProgress}、
-              完了: {stats.done})
-            </p>
-          );
-        })()}
+      {/* タスク統計情報 */}
+      <div className="mt-4">
+        <div className="bg-gray-100 p-4 rounded-lg">
+          <h3 className="font-bold mb-2">タスク統計</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-500">未着手</p>
+              <p className="text-xl font-bold">{getTaskStats().todo}</p>
+            </div>
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-500">進行中</p>
+              <p className="text-xl font-bold">{getTaskStats().inProgress}</p>
+            </div>
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-500">完了</p>
+              <p className="text-xl font-bold">{getTaskStats().done}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* タスク詳細モーダル */}
@@ -2447,12 +2408,10 @@ const TaskManagementApp = () => {
         </div>
       )}
 
-      {/* アクティブタスクのポップアップを追加 */}
+      {/* フローティングタスクポップアップ */}
       {activeTask && (
         <ActiveTaskPopup task={activeTask} onClose={handleClosePopup} />
       )}
-
-      {showTaskPopup && <TaskPopup task={selectedTask} onClose={handleClosePopup} />}
 
       {/* 常にタスク操作用のスイッチャーを表示 */}
       <div className="fixed bottom-4 left-4 z-50">
@@ -2465,9 +2424,12 @@ const TaskManagementApp = () => {
               const taskId = e.target.value;
               if (taskId) {
                 const task = tasks.find(t => t.id === taskId);
-                if (task) setActiveTask(task);
+                if (task) {
+                  console.log("選択されたタスク:", task);
+                  handleSetActiveTask(task);
+                }
               } else {
-                setActiveTask(null);
+                handleClosePopup();
               }
             }}
           >
