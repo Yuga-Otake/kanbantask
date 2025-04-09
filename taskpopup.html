@@ -243,7 +243,7 @@
           div.dataset.id = subtask.id;
           
           // サブタスク名（text または name プロパティ）
-          const subtaskText = subtask.text || subtask.name || '';
+          const subtaskText = subtask.text || subtask.name || '未設定';
           
           // 期限表示用の要素
           let dueDateHtml = '';
@@ -381,13 +381,20 @@
       // メッセージイベントリスナー
       window.addEventListener('message', function(event) {
         const data = event.data;
+        console.log('受信したメッセージ:', data);
         
         if (data && data.type === 'TASK_DATA') {
           displayTaskData(data.task);
         } else if (data && data.type === 'TASK_UPDATED') {
           // タスクが更新された場合、UIを更新
           if (currentTask && currentTask.id === data.taskId) {
-            currentTask = data.updatedTask;
+            // updatedTaskが渡された場合はそれを使用
+            if (data.updatedTask) {
+              currentTask = data.updatedTask;
+            } else {
+              // そうでない場合は状態だけ更新
+              currentTask.status = data.status;
+            }
             displayTaskData(currentTask);
           }
         } else if (data && data.type === 'SUBTASK_UPDATED') {
