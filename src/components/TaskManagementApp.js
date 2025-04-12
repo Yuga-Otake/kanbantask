@@ -187,6 +187,10 @@ const TaskManagementApp = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
   const taskInputRef = React.useRef(null);
+  
+  // サブタスク編集用の状態
+  const [editingSubtaskId, setEditingSubtaskId] = useState(null);
+  const subtaskEditRef = React.useRef(null);
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -596,6 +600,48 @@ const TaskManagementApp = () => {
     return sortSubtasksByDueDate(filteredSubtasks);
   };
 
+  // サブタスクの編集を開始
+  const startEditingSubtask = (taskId, subtaskId, subtaskText) => {
+    setEditingSubtaskId({ taskId, subtaskId });
+    setTimeout(() => {
+      if (subtaskEditRef.current) {
+        subtaskEditRef.current.value = subtaskText;
+        subtaskEditRef.current.focus();
+        subtaskEditRef.current.select();
+      }
+    }, 10);
+  };
+
+  // サブタスクの編集を保存
+  const saveSubtaskEdit = (taskId, subtaskId) => {
+    if (!subtaskEditRef.current) return;
+    
+    const newText = subtaskEditRef.current.value.trim();
+    if (newText === '') return;
+    
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map(subtask =>
+                subtask.id === subtaskId
+                  ? { ...subtask, text: newText }
+                  : subtask
+              )
+            }
+          : task
+      )
+    );
+    
+    setEditingSubtaskId(null);
+  };
+
+  // サブタスク編集のキャンセル
+  const cancelSubtaskEdit = () => {
+    setEditingSubtaskId(null);
+  };
+
   // カンバンカラムコンポーネント
   const KanbanColumn = ({ title, status, tasks }) => {
     const [isDragOver, setIsDragOver] = useState(false);
@@ -907,10 +953,37 @@ const TaskManagementApp = () => {
                                       onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
                                       className="mr-1"
                                     />
-                                    <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                                      {subtask.text}
-                                    </span>
+                                    {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
+                                      <form 
+                                        onSubmit={(e) => {
+                                          e.preventDefault();
+                                          saveSubtaskEdit(task.id, subtask.id);
+                                        }}
+                                        className="flex-1"
+                                      >
+                                        <input
+                                          ref={subtaskEditRef}
+                                          type="text"
+                                          className="w-full border rounded px-1 py-0.5 text-sm"
+                                          onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Escape') {
+                                              e.preventDefault();
+                                              cancelSubtaskEdit();
+                                            }
+                                          }}
+                                          style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                        />
+                                      </form>
+                                    ) : (
+                                      <span 
+                                        className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                        style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                        onDoubleClick={() => startEditingSubtask(task.id, subtask.id, subtask.text)}
+                                      >
+                                        {subtask.text}
+                                      </span>
+                                    )}
                                     <div className="flex items-center">
                                       <select
                                         className="text-xs p-0 border rounded mr-1"
@@ -1143,10 +1216,37 @@ const TaskManagementApp = () => {
                                     onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
                                     className="mr-1"
                                   />
-                                  <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                    style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                                    {subtask.text}
-                                  </span>
+                                  {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
+                                    <form 
+                                      onSubmit={(e) => {
+                                        e.preventDefault();
+                                        saveSubtaskEdit(task.id, subtask.id);
+                                      }}
+                                      className="flex-1"
+                                    >
+                                      <input
+                                        ref={subtaskEditRef}
+                                        type="text"
+                                        className="w-full border rounded px-1 py-0.5 text-sm"
+                                        onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            cancelSubtaskEdit();
+                                          }
+                                        }}
+                                        style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                      />
+                                    </form>
+                                  ) : (
+                                    <span 
+                                      className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                      onDoubleClick={() => startEditingSubtask(task.id, subtask.id, subtask.text)}
+                                    >
+                                      {subtask.text}
+                                    </span>
+                                  )}
                                   <div className="flex items-center">
                                     <select
                                       className="text-xs p-0 border rounded mr-1"
@@ -1741,35 +1841,65 @@ const TaskManagementApp = () => {
                               onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
                               className="mr-2"
                             />
-                            <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                              style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                              {subtask.text}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <select
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.status || TASK_STATUS.TODO}
-                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                            >
-                              <option value={TASK_STATUS.TODO}>未着手</option>
-                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                              <option value={TASK_STATUS.DONE}>完了</option>
-                            </select>
-                            <input
-                              type="date"
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.dueDate || ''}
-                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            />
-                            <button
-                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            {editingSubtaskId && editingSubtaskId.taskId === currentTask.id && editingSubtaskId.subtaskId === subtask.id ? (
+                              <form 
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  saveSubtaskEdit(currentTask.id, subtask.id);
+                                }}
+                                className="flex-1"
+                              >
+                                <input
+                                  ref={subtaskEditRef}
+                                  type="text"
+                                  className="w-full border rounded px-1 py-0.5 text-sm"
+                                  onBlur={() => saveSubtaskEdit(currentTask.id, subtask.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      cancelSubtaskEdit();
+                                    }
+                                  }}
+                                  style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                />
+                              </form>
+                            ) : (
+                              <span 
+                                className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                onDoubleClick={() => startEditingSubtask(currentTask.id, subtask.id, subtask.text)}
+                              >
+                                {subtask.text}
+                              </span>
+                            )}
+                            <div className="flex items-center">
+                              <select
+                                className="text-xs p-0 border rounded mr-1"
+                                value={subtask.status || TASK_STATUS.TODO}
+                                onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
+                                style={{ maxWidth: '80px' }}
+                              >
+                                <option value={TASK_STATUS.TODO}>未着手</option>
+                                <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                <option value={TASK_STATUS.DONE}>完了</option>
+                              </select>
+                              <input
+                                type="date"
+                                className="text-xs p-0 border rounded mr-1"
+                                value={subtask.dueDate || ''}
+                                onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
+                                style={{ width: '110px' }}
+                              />
+                              <button
+                                onClick={() => deleteSubtask(currentTask.id, subtask.id)}
+                                className="text-red-500 hover:text-red-700 ml-1"
+                                title="削除"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1814,35 +1944,62 @@ const TaskManagementApp = () => {
                               onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
                               className="mr-2"
                             />
-                            <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                              style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                              {subtask.text}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <select
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.status || TASK_STATUS.TODO}
-                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                            >
-                              <option value={TASK_STATUS.TODO}>未着手</option>
-                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                              <option value={TASK_STATUS.DONE}>完了</option>
-                            </select>
-                            <input
-                              type="date"
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.dueDate || ''}
-                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            />
-                            <button
-                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            {editingSubtaskId && editingSubtaskId.taskId === currentTask.id && editingSubtaskId.subtaskId === subtask.id ? (
+                              <form 
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  saveSubtaskEdit(currentTask.id, subtask.id);
+                                }}
+                                className="flex-1"
+                              >
+                                <input
+                                  ref={subtaskEditRef}
+                                  type="text"
+                                  className="w-full border rounded px-1 py-0.5 text-sm"
+                                  onBlur={() => saveSubtaskEdit(currentTask.id, subtask.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      cancelSubtaskEdit();
+                                    }
+                                  }}
+                                  style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                />
+                              </form>
+                            ) : (
+                              <span 
+                                className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                onDoubleClick={() => startEditingSubtask(currentTask.id, subtask.id, subtask.text)}
+                              >
+                                {subtask.text}
+                              </span>
+                            )}
+                            <div className="flex items-center">
+                              <select
+                                className="text-xs p-1 border rounded mr-2"
+                                value={subtask.status || TASK_STATUS.TODO}
+                                onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
+                              >
+                                <option value={TASK_STATUS.TODO}>未着手</option>
+                                <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                <option value={TASK_STATUS.DONE}>完了</option>
+                              </select>
+                              <input
+                                type="date"
+                                className="text-xs p-1 border rounded mr-2"
+                                value={subtask.dueDate || ''}
+                                onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
+                              />
+                              <button
+                                onClick={() => deleteSubtask(currentTask.id, subtask.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1887,35 +2044,62 @@ const TaskManagementApp = () => {
                               onChange={() => toggleSubtaskCompletion(currentTask.id, subtask.id)}
                               className="mr-2"
                             />
-                            <span className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                              style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}>
-                              {subtask.text}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <select
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.status || TASK_STATUS.TODO}
-                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                            >
-                              <option value={TASK_STATUS.TODO}>未着手</option>
-                              <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                              <option value={TASK_STATUS.DONE}>完了</option>
-                            </select>
-                            <input
-                              type="date"
-                              className="text-xs p-1 border rounded mr-2"
-                              value={subtask.dueDate || ''}
-                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                            />
-                            <button
-                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            {editingSubtaskId && editingSubtaskId.taskId === currentTask.id && editingSubtaskId.subtaskId === subtask.id ? (
+                              <form 
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  saveSubtaskEdit(currentTask.id, subtask.id);
+                                }}
+                                className="flex-1"
+                              >
+                                <input
+                                  ref={subtaskEditRef}
+                                  type="text"
+                                  className="w-full border rounded px-1 py-0.5 text-sm"
+                                  onBlur={() => saveSubtaskEdit(currentTask.id, subtask.id)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      cancelSubtaskEdit();
+                                    }
+                                  }}
+                                  style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                />
+                              </form>
+                            ) : (
+                              <span 
+                                className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                onDoubleClick={() => startEditingSubtask(currentTask.id, subtask.id, subtask.text)}
+                              >
+                                {subtask.text}
+                              </span>
+                            )}
+                            <div className="flex items-center">
+                              <select
+                                className="text-xs p-1 border rounded mr-2"
+                                value={subtask.status || TASK_STATUS.TODO}
+                                onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
+                              >
+                                <option value={TASK_STATUS.TODO}>未着手</option>
+                                <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
+                                <option value={TASK_STATUS.DONE}>完了</option>
+                              </select>
+                              <input
+                                type="date"
+                                className="text-xs p-1 border rounded mr-2"
+                                value={subtask.dueDate || ''}
+                                onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
+                              />
+                              <button
+                                onClick={() => deleteSubtask(currentTask.id, subtask.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
