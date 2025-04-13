@@ -1696,8 +1696,10 @@ const TaskManagementApp = () => {
   const TaskDetailModal = ({ task, onClose }) => {
     const subtaskInputRef = React.useRef(null);
     const commentInputRef = React.useRef(null);
+    const modalContentRef = React.useRef(null);
     const [currentTask, setCurrentTask] = useState(task);
     const [localCommentInput, setLocalCommentInput] = useState('');
+    const [scrollPosition, setScrollPosition] = useState(0);
 
     // タスクが変更された場合に更新
     useEffect(() => {
@@ -1705,21 +1707,38 @@ const TaskManagementApp = () => {
         setCurrentTask(task);
         setLocalCommentInput(commentInputs[task.id] || '');
       }
-    }, [task, commentInputs]);
+    }, [task]);
+
+    // スクロール位置を保持
+    useEffect(() => {
+      if (modalContentRef.current) {
+        modalContentRef.current.scrollTop = scrollPosition;
+      }
+    }, [scrollPosition]);
 
     if (!currentTask) return null;
 
     const handleCommentSubmit = (e) => {
       e.preventDefault();
       if (localCommentInput.trim()) {
+        // 現在のスクロール位置を保存
+        if (modalContentRef.current) {
+          setScrollPosition(modalContentRef.current.scrollTop);
+        }
+        
         addComment(currentTask.id);
         setLocalCommentInput('');
+        
         // コメント追加後にフォーカスを維持
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           if (commentInputRef.current) {
             commentInputRef.current.focus();
           }
-        }, 0);
+          // スクロール位置を復元
+          if (modalContentRef.current) {
+            modalContentRef.current.scrollTop = scrollPosition;
+          }
+        });
       }
     };
 
@@ -1727,22 +1746,44 @@ const TaskManagementApp = () => {
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         if (localCommentInput.trim()) {
+          // 現在のスクロール位置を保存
+          if (modalContentRef.current) {
+            setScrollPosition(modalContentRef.current.scrollTop);
+          }
+          
           addComment(currentTask.id);
           setLocalCommentInput('');
+          
           // コメント追加後にフォーカスを維持
-          setTimeout(() => {
+          requestAnimationFrame(() => {
             if (commentInputRef.current) {
               commentInputRef.current.focus();
             }
-          }, 0);
+            // スクロール位置を復元
+            if (modalContentRef.current) {
+              modalContentRef.current.scrollTop = scrollPosition;
+            }
+          });
         }
       }
     };
 
     const handleCommentInputChange = (e) => {
       const newValue = e.target.value;
+      // 現在のスクロール位置を保存
+      if (modalContentRef.current) {
+        setScrollPosition(modalContentRef.current.scrollTop);
+      }
+      
       setLocalCommentInput(newValue);
       handleCommentChange(currentTask.id, newValue);
+      
+      // スクロール位置を復元
+      requestAnimationFrame(() => {
+        if (modalContentRef.current) {
+          modalContentRef.current.scrollTop = scrollPosition;
+        }
+      });
     };
 
     // サブタスク追加のハンドラ
@@ -1773,7 +1814,10 @@ const TaskManagementApp = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto">
+        <div 
+          ref={modalContentRef}
+          className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        >
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-xl font-bold">{currentTask.title}</h2>
             <button
