@@ -3,14 +3,11 @@
 const TaskManagementApp = () => {
   const [version, setVersion] = useState('1.0.0');
 
-  // 日付をフォーマットする関数
+  // 日付のフォーマット
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('ja-JP', {
-      month: '2-digit',
-      day: '2-digit'
-    });
+    return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
   };
 
   // .ics ファイルを生成する関数
@@ -914,7 +911,7 @@ const TaskManagementApp = () => {
                                         disabled={(subtask.level || 0) === 0}
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                         </svg>
                                       </button>
                                       <button
@@ -923,7 +920,7 @@ const TaskManagementApp = () => {
                                         title="レベル下げ"
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>
                                       </button>
                                     </div>
@@ -931,7 +928,7 @@ const TaskManagementApp = () => {
                                       type="checkbox"
                                       checked={subtask.completed}
                                       onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
-                                      className="mr-1"
+                                      className="mr-2"
                                     />
                                     {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
                                       <form 
@@ -1034,18 +1031,17 @@ const TaskManagementApp = () => {
                           </button>
                           {task.dueDate && (
                             <button
-                              className={`text-xs flex items-center px-2 py-1 rounded border ${
+                              className={`text-xs flex items-center ${
                                 task.isCalendarAdded
-                                  ? 'bg-green-100 text-green-700 border-green-200'
-                                  : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                                  ? 'text-green-700'
+                                  : 'text-blue-500 hover:text-blue-700'
                               }`}
                               onClick={() => generateICSFile(task)}
-                              title={task.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
+                              title={task.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              <span>{task.isCalendarAdded ? "追加済み" : "予定追加"}</span>
                             </button>
                           )}
                         </div>
@@ -1183,71 +1179,83 @@ const TaskManagementApp = () => {
                           {task.subtasks && getFilteredSubtasks(task, status).length > 0 && (
                             <div className="mt-1 space-y-1">
                               {getFilteredSubtasks(task, status).map(subtask => (
-                                <div key={subtask.id} className="flex items-center text-sm">
-                                  <div className="flex items-center mr-2">
+                                <div key={subtask.id} className="flex flex-col py-2 px-3 hover:bg-gray-50">
+                                  <div className="flex items-center">
+                                    <div className="flex items-center mr-2">
+                                      <button
+                                        onClick={() => promoteSubtask(task.id, subtask.id)}
+                                        className="text-gray-500 hover:text-gray-700 mr-1"
+                                        title="レベル上げ"
+                                        disabled={(subtask.level || 0) === 0}
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => demoteSubtask(task.id, subtask.id)}
+                                        className="text-gray-500 hover:text-gray-700"
+                                        title="レベル下げ"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                    <input
+                                      type="checkbox"
+                                      checked={subtask.completed}
+                                      onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                      className="mr-2"
+                                    />
+                                    {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
+                                      <form 
+                                        onSubmit={(e) => {
+                                          e.preventDefault();
+                                          saveSubtaskEdit(task.id, subtask.id);
+                                        }}
+                                        className="flex-1"
+                                      >
+                                        <input
+                                          ref={subtaskEditRef}
+                                          type="text"
+                                          className="w-full border rounded px-1 py-0.5 text-sm"
+                                          onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Escape') {
+                                              e.preventDefault();
+                                              cancelSubtaskEdit();
+                                            }
+                                          }}
+                                          style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                        />
+                                      </form>
+                                    ) : (
+                                      <span 
+                                        className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
+                                        style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                        onDoubleClick={() => startEditingSubtask(task.id, subtask.id, subtask.text)}
+                                      >
+                                        {subtask.text}
+                                      </span>
+                                    )}
                                     <button
-                                      onClick={() => promoteSubtask(task.id, subtask.id)}
-                                      className="text-gray-500 hover:text-gray-700 mr-1"
-                                      title="レベル上げ"
-                                      disabled={(subtask.level || 0) === 0}
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-2"
+                                      title="削除"
                                     >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                      </svg>
-                                    </button>
-                                    <button
-                                      onClick={() => demoteSubtask(task.id, subtask.id)}
-                                      className="text-gray-500 hover:text-gray-700"
-                                      title="レベル下げ"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                       </svg>
                                     </button>
                                   </div>
-                                  <input
-                                    type="checkbox"
-                                    checked={subtask.completed}
-                                    onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
-                                    className="mr-1"
-                                  />
-                                  {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
-                                    <form 
-                                      onSubmit={(e) => {
-                                        e.preventDefault();
-                                        saveSubtaskEdit(task.id, subtask.id);
-                                      }}
-                                      className="flex-1"
-                                    >
-                                      <input
-                                        ref={subtaskEditRef}
-                                        type="text"
-                                        className="w-full border rounded px-1 py-0.5 text-sm"
-                                        onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Escape') {
-                                            e.preventDefault();
-                                            cancelSubtaskEdit();
-                                          }
-                                        }}
-                                        style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
-                                      />
-                                    </form>
-                                  ) : (
-                                    <span 
-                                      className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
-                                      onDoubleClick={() => startEditingSubtask(task.id, subtask.id, subtask.text)}
-                                    >
-                                      {subtask.text}
-                                    </span>
-                                  )}
-                                  <div className="flex items-center">
+                                  
+                                  <div className="flex items-center mt-1 ml-8">
                                     <select
                                       className="text-xs p-0 border rounded mr-1"
                                       value={subtask.status || TASK_STATUS.TODO}
                                       onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
-                                      style={{ maxWidth: '80px' }}
+                                      style={{ maxWidth: '60px' }}
                                     >
                                       <option value={TASK_STATUS.TODO}>未</option>
                                       <option value={TASK_STATUS.IN_PROGRESS}>進</option>
@@ -1260,15 +1268,6 @@ const TaskManagementApp = () => {
                                       onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
                                       style={{ width: '110px' }}
                                     />
-                                    <button
-                                      onClick={() => deleteSubtask(task.id, subtask.id)}
-                                      className="text-red-500 hover:text-red-700 ml-1"
-                                      title="削除"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                      </svg>
-                                    </button>
                                     {subtask.dueDate && (
                                       <button
                                         className={`text-xs flex items-center ml-1 ${
@@ -1277,12 +1276,11 @@ const TaskManagementApp = () => {
                                             : 'text-blue-500 hover:text-blue-700'
                                         }`}
                                         onClick={() => generateICSFile(task, true, subtask)}
-                                        title={subtask.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
+                                        title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
                                       >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                         </svg>
-                                        <span>{subtask.isCalendarAdded ? "済" : "予定"}</span>
                                       </button>
                                     )}
                                   </div>
@@ -1313,18 +1311,17 @@ const TaskManagementApp = () => {
                         </button>
                         {task.dueDate && (
                           <button
-                            className={`text-xs flex items-center px-2 py-1 rounded border ${
+                            className={`text-xs flex items-center ${
                               task.isCalendarAdded
-                                ? 'bg-green-100 text-green-700 border-green-200'
-                                : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                                ? 'text-green-700'
+                                : 'text-blue-500 hover:text-blue-700'
                             }`}
                             onClick={() => generateICSFile(task)}
-                            title={task.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
+                            title={task.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span>{task.isCalendarAdded ? "追加済み" : "予定追加"}</span>
                           </button>
                         )}
                       </div>
@@ -1911,7 +1908,7 @@ const TaskManagementApp = () => {
                                 disabled={(subtask.level || 0) === 0}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                               </button>
                               <button
@@ -1920,7 +1917,7 @@ const TaskManagementApp = () => {
                                 title="レベル下げ"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                               </button>
                             </div>
@@ -2014,14 +2011,14 @@ const TaskManagementApp = () => {
 
                 {/* 進行中のサブタスク */}
                 {groupedSubtasks[TASK_STATUS.IN_PROGRESS].length > 0 && (
-                  <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="bg-blue-100 py-2 px-3 font-medium text-blue-800">
+                  <div className="border border-gray-200 rounded-md overflow-hidden mt-4">
+                    <div className="bg-blue-100 py-2 px-3 font-medium">
                       進行中 ({groupedSubtasks[TASK_STATUS.IN_PROGRESS].length})
                     </div>
                     <div className="divide-y divide-gray-200">
                       {sortSubtasksByDueDate(groupedSubtasks[TASK_STATUS.IN_PROGRESS]).map(subtask => (
-                        <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
-                          <div className="flex items-center flex-grow">
+                        <div key={subtask.id} className="flex flex-col py-2 px-3 hover:bg-gray-50">
+                          <div className="flex items-center">
                             <div className="flex items-center mr-2">
                               <button
                                 onClick={() => promoteSubtask(currentTask.id, subtask.id)}
@@ -2030,7 +2027,7 @@ const TaskManagementApp = () => {
                                 disabled={(subtask.level || 0) === 0}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                               </button>
                               <button
@@ -2039,7 +2036,7 @@ const TaskManagementApp = () => {
                                 title="レベル下げ"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                               </button>
                             </div>
@@ -2080,47 +2077,50 @@ const TaskManagementApp = () => {
                                 {subtask.text}
                               </span>
                             )}
-                            <div className="flex items-center">
-                              <select
-                                className="text-xs p-1 border rounded mr-2"
-                                value={subtask.status || TASK_STATUS.TODO}
-                                onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                              >
-                                <option value={TASK_STATUS.TODO}>未着手</option>
-                                <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                                <option value={TASK_STATUS.DONE}>完了</option>
-                              </select>
-                              <input
-                                type="date"
-                                className="text-xs p-1 border rounded mr-2"
-                                value={subtask.dueDate || ''}
-                                onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                              />
+                            <button
+                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
+                              className="text-red-500 hover:text-red-700 ml-2"
+                              title="削除"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center mt-1 ml-8">
+                            <select
+                              className="text-xs p-0 border rounded mr-1"
+                              value={subtask.status || TASK_STATUS.TODO}
+                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
+                              style={{ maxWidth: '60px' }}
+                            >
+                              <option value={TASK_STATUS.TODO}>未</option>
+                              <option value={TASK_STATUS.IN_PROGRESS}>進</option>
+                              <option value={TASK_STATUS.DONE}>完</option>
+                            </select>
+                            <input
+                              type="date"
+                              className="text-xs p-0 border rounded mr-1"
+                              value={subtask.dueDate || ''}
+                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
+                              style={{ width: '110px' }}
+                            />
+                            {subtask.dueDate && (
                               <button
-                                onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                                className="text-red-500 hover:text-red-700"
+                                className={`text-xs flex items-center ml-1 ${
+                                  subtask.isCalendarAdded
+                                    ? 'text-green-700'
+                                    : 'text-blue-500 hover:text-blue-700'
+                                }`}
+                                onClick={() => generateICSFile(currentTask, true, subtask)}
+                                title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                               </button>
-                              {subtask.dueDate && (
-                                <button
-                                  className={`text-xs flex items-center ml-1 ${
-                                    subtask.isCalendarAdded
-                                      ? 'bg-green-100 text-green-700 border-green-200'
-                                      : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
-                                  }`}
-                                  onClick={() => generateICSFile(currentTask, true, subtask)}
-                                  title={subtask.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                  <span>{subtask.isCalendarAdded ? "済" : "予定"}</span>
-                                </button>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -2128,16 +2128,16 @@ const TaskManagementApp = () => {
                   </div>
                 )}
 
-                {/* 完了のサブタスク */}
+                {/* 完了したサブタスク */}
                 {groupedSubtasks[TASK_STATUS.DONE].length > 0 && (
-                  <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="bg-green-100 py-2 px-3 font-medium text-green-800">
+                  <div className="border border-gray-200 rounded-md overflow-hidden mt-4">
+                    <div className="bg-green-100 py-2 px-3 font-medium">
                       完了 ({groupedSubtasks[TASK_STATUS.DONE].length})
                     </div>
                     <div className="divide-y divide-gray-200">
                       {sortSubtasksByDueDate(groupedSubtasks[TASK_STATUS.DONE]).map(subtask => (
-                        <div key={subtask.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
-                          <div className="flex items-center flex-grow">
+                        <div key={subtask.id} className="flex flex-col py-2 px-3 hover:bg-gray-50">
+                          <div className="flex items-center">
                             <div className="flex items-center mr-2">
                               <button
                                 onClick={() => promoteSubtask(currentTask.id, subtask.id)}
@@ -2146,7 +2146,7 @@ const TaskManagementApp = () => {
                                 disabled={(subtask.level || 0) === 0}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                 </svg>
                               </button>
                               <button
@@ -2155,7 +2155,7 @@ const TaskManagementApp = () => {
                                 title="レベル下げ"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
                               </button>
                             </div>
@@ -2196,47 +2196,50 @@ const TaskManagementApp = () => {
                                 {subtask.text}
                               </span>
                             )}
-                            <div className="flex items-center">
-                              <select
-                                className="text-xs p-1 border rounded mr-2"
-                                value={subtask.status || TASK_STATUS.TODO}
-                                onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
-                              >
-                                <option value={TASK_STATUS.TODO}>未着手</option>
-                                <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                                <option value={TASK_STATUS.DONE}>完了</option>
-                              </select>
-                              <input
-                                type="date"
-                                className="text-xs p-1 border rounded mr-2"
-                                value={subtask.dueDate || ''}
-                                onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
-                              />
+                            <button
+                              onClick={() => deleteSubtask(currentTask.id, subtask.id)}
+                              className="text-red-500 hover:text-red-700 ml-2"
+                              title="削除"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          
+                          <div className="flex items-center mt-1 ml-8">
+                            <select
+                              className="text-xs p-0 border rounded mr-1"
+                              value={subtask.status || TASK_STATUS.TODO}
+                              onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
+                              style={{ maxWidth: '60px' }}
+                            >
+                              <option value={TASK_STATUS.TODO}>未</option>
+                              <option value={TASK_STATUS.IN_PROGRESS}>進</option>
+                              <option value={TASK_STATUS.DONE}>完</option>
+                            </select>
+                            <input
+                              type="date"
+                              className="text-xs p-0 border rounded mr-1"
+                              value={subtask.dueDate || ''}
+                              onChange={(e) => setSubtaskDueDate(currentTask.id, subtask.id, e.target.value)}
+                              style={{ width: '110px' }}
+                            />
+                            {subtask.dueDate && (
                               <button
-                                onClick={() => deleteSubtask(currentTask.id, subtask.id)}
-                                className="text-red-500 hover:text-red-700"
+                                className={`text-xs flex items-center ml-1 ${
+                                  subtask.isCalendarAdded
+                                    ? 'text-green-700'
+                                    : 'text-blue-500 hover:text-blue-700'
+                                }`}
+                                onClick={() => generateICSFile(currentTask, true, subtask)}
+                                title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                               </button>
-                              {subtask.dueDate && (
-                                <button
-                                  className={`text-xs flex items-center ml-1 ${
-                                    subtask.isCalendarAdded
-                                      ? 'bg-green-100 text-green-700 border-green-200'
-                                      : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
-                                  }`}
-                                  onClick={() => generateICSFile(currentTask, true, subtask)}
-                                  title={subtask.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                  <span>{subtask.isCalendarAdded ? "済" : "予定"}</span>
-                                </button>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       ))}
