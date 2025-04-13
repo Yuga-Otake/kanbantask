@@ -1,6 +1,6 @@
 {
   "short_name": "カンバンタスク",
-  "name": "カンバン式タスク管理 v1.1.0",
+  "name": "カンバン式タスク管理",
   "icons": [
     {
       "src": "favicon.ico",
@@ -18,8 +18,9 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "./index.html",
+  "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "orientation": "portrait"
 }
