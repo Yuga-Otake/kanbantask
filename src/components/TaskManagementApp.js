@@ -310,6 +310,8 @@ const TaskManagementApp = () => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [commentInputs, setCommentInputs] = useState({});
   const taskInputRef = React.useRef(null);
+  const [viewMode, setViewMode] = useState('normal'); // 通常表示かプロジェクト表示か
+  const [currentTaskForModal, setCurrentTaskForModal] = useState(null);
   
   // サブタスク編集用の状態
   const [editingSubtaskId, setEditingSubtaskId] = useState(null);
