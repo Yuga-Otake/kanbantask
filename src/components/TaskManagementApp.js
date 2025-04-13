@@ -1,14 +1,156 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { getDueDateClassName } from '../utils/dateUtils';
 
 const TaskManagementApp = () => {
-  const [version, setVersion] = useState('1.0.0');
+  const [version, setVersion] = useState('1.1.8');
 
-  // 日付のフォーマット
+  // 日付のフォーマット（MM/DD形式）
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+    // 月の取得（JavaScriptでは0から始まるため+1する）
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    // 日の取得（2桁になるよう0埋め）
+    const day = date.getDate().toString().padStart(2, '0');
+    // MM/DD形式で返す
+    return `${month}/${day}`;
   };
+
+  // 日付入力フィールドの表示をカスタマイズするスタイル
+  const customStyles = `
+    /* ====================================================
+     * 日付入力フィールドのスタイル（カレンダーピッカー）
+     * ==================================================== */
+    
+    /* 日付入力フィールドの基本スタイル設定
+     * position: relative - 子要素の位置決めの基準点となる
+     * overflow: visible - カレンダーピッカーが親要素からはみ出ても表示される
+     */
+    input[type="date"] {
+      position: relative;
+      overflow: visible;
+    }
+    
+    /* カレンダーピッカーアイコンのスタイル
+     * 独自のSVGアイコンを使用して、デザインの一貫性を保つ
+     * 特定の位置に配置することで、誤クリックを防止
+     * z-index: 1 - 他の要素より前面に表示されるが、モーダルなど重要な要素より後ろに表示
+     */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="15" viewBox="0 0 24 24"><path fill="%23757575" d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>');
+      background-repeat: no-repeat;
+      background-size: 16px;
+      background-position: center;
+      width: 20px;
+      height: 20px;
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      margin: auto;
+      padding: 0;
+      cursor: pointer;
+      opacity: 0.5;
+      box-sizing: border-box;
+      z-index: 1;
+    }
+    
+    /* カレンダーピッカーのホバー時のスタイル - ユーザーフィードバックを向上 */
+    input[type="date"]:hover::-webkit-calendar-picker-indicator {
+      opacity: 0.8;
+    }
+    
+    /* ブラウザ標準のスピンボタンと削除ボタンを非表示に */
+    input[type="date"]::-webkit-inner-spin-button,
+    input[type="date"]::-webkit-clear-button {
+      display: none;
+    }
+    
+    /* 年の表示を非表示に - MM/DD形式のみ表示するため */
+    input[type="date"]::-webkit-datetime-edit-year-field {
+      display: none !important;
+    }
+    
+    /* 日付の最初の区切り文字（スラッシュ）を非表示に */
+    input[type="date"]::-webkit-datetime-edit-text:first-child {
+      display: none !important;
+    }
+    
+    /* サブタスクリストの日付表示のスタイル調整 - 余分な区切り文字を非表示に */
+    input[type="date"]::-webkit-datetime-edit-text {
+      display: none !important;
+    }
+    
+    /* 青丸で囲まれた日付表示を非表示にする - カレンダーアイコン横の日付テキスト */
+    span.task-date {
+      display: none !important;
+    }
+    
+    /* ====================================================
+     * その他の共通スタイル
+     * ==================================================== */
+    
+    .h-screen-minus-header {
+      height: auto;
+      max-height: 500px;
+    }
+    
+    /* カード要素のホバーエフェクト */
+    .task-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .task-card:hover {
+      transform: translateX(3px);
+    }
+    
+    /* カラムのホバーエフェクト */
+    .column-transition {
+      transition: background-color 0.3s;
+    }
+    
+    .column-transition:hover {
+      background-color: #f3f4f6;
+    }
+
+    /* ====================================================
+     * レスポンシブデザインの設定
+     * ==================================================== */
+    @media (max-width: 768px) {
+      /* 全体のフレックスアイテムを折り返し表示に */
+      .flex.items-center {
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      
+      /* カンバンボードのカラムをモバイル表示で縦並びに */
+      .flex.justify-between.mt-6 {
+        flex-direction: column;
+      }
+      
+      .w-1/3 {
+        width: 100%;
+        margin-bottom: 1rem;
+      }
+      
+      /* サブタスクの表示を改善 */
+      .flex.items-center.text-sm {
+        flex-wrap: wrap;
+      }
+      
+      .flex.items-center.text-sm > .flex-1 {
+        width: 100%;
+        margin-bottom: 4px;
+      }
+      
+      .flex.items-center.text-sm > .flex.items-center {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 4px;
+        margin-left: 20px;
+      }
+    }
+  `;
 
   // .ics ファイルを生成する関数
   const generateICSFile = (task, isSubtask = false, subtask = null) => {
@@ -105,26 +247,6 @@ const TaskManagementApp = () => {
     }
   };
 
-  // 締め切り日に基づいてスタイルクラスを返す関数
-  const getDueDateClassName = (dueDate, isCompleted) => {
-    if (isCompleted) return 'text-gray-400';
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const dueDateObj = new Date(dueDate);
-    dueDateObj.setHours(0, 0, 0, 0);
-    
-    const timeDiff = dueDateObj.getTime() - today.getTime();
-    const daysDiff = timeDiff / (1000 * 3600 * 24);
-    
-    if (daysDiff < 0) return 'text-red-600 font-bold'; // 期限切れ
-    if (daysDiff === 0) return 'text-orange-500 font-bold'; // 今日が期限
-    if (daysDiff <= 3) return 'text-yellow-600'; // 期限が近い（3日以内）
-    
-    return 'text-green-600'; // 期限に余裕がある
-  };
-
   // プロジェクト名に基づいて色を生成
   const getProjectColor = (projectName) => {
     if (!projectName) return null;
@@ -149,31 +271,17 @@ const TaskManagementApp = () => {
 
   // タスクの状態管理
   const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    console.log('Loaded tasks from localStorage:', savedTasks);
-    if (savedTasks) {
-      const parsedTasks = JSON.parse(savedTasks);
-      // 既存のタスクにcomments配列とsubtasks配列を追加
-      return parsedTasks.map((task, index) => ({
-        ...task,
-        order: task.order || index, // orderプロパティがなければindexをorderとして追加
-        comments: task.comments || [],
-        subtasks: task.subtasks ? task.subtasks.map(subtask => ({
-          ...subtask,
-          level: subtask.level || 0
-        })) : []
-      }));
-    }
-    return [];
+    // ローカルストレージからデータの読み込み
+    const savedTasks = localStorage.getItem('kanban-tasks');
+    return savedTasks ? JSON.parse(savedTasks) : [];
   });
-  // プロジェクトの順序を管理するための状態
+  
+  // プロジェクトの順序情報
   const [projectOrder, setProjectOrder] = useState(() => {
-    const savedProjectOrder = localStorage.getItem('projectOrder');
-    if (savedProjectOrder) {
-      return JSON.parse(savedProjectOrder);
-    }
-    return {};
+    const savedOrder = localStorage.getItem('kanban-project-order');
+    return savedOrder ? JSON.parse(savedOrder) : {};
   });
+  
   const [draggedProject, setDraggedProject] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
@@ -194,19 +302,21 @@ const TaskManagementApp = () => {
   // サブタスク編集用の状態
   const [editingSubtaskId, setEditingSubtaskId] = useState(null);
   const subtaskEditRef = React.useRef(null);
+  // ファイルインポート用の参照
+  const fileInputRef = React.useRef(null);
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
     console.log('Saving tasks to localStorage:', tasks);
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    const savedTasks = localStorage.getItem('tasks');
+    localStorage.setItem('kanban-tasks', JSON.stringify(tasks));
+    const savedTasks = localStorage.getItem('kanban-tasks');
     console.log('Verified saved tasks:', savedTasks);
   }, [tasks]);
 
   // プロジェクトの順序をローカルストレージに保存
   useEffect(() => {
     if (Object.keys(projectOrder).length > 0) {
-      localStorage.setItem('projectOrder', JSON.stringify(projectOrder));
+      localStorage.setItem('kanban-project-order', JSON.stringify(projectOrder));
       console.log('Saved project order:', projectOrder);
     }
   }, [projectOrder]);
@@ -214,13 +324,12 @@ const TaskManagementApp = () => {
   // タスクが変更されたときにプロジェクトの順序を再計算
   useEffect(() => {
     if (tasks.length > 0) {
-      const newOrder = recalculateProjectOrder();
-      console.log('Recalculated project order after task change:', newOrder);
+      recalculateProjectOrder();
     }
-  }, [tasks]);
+  }, [tasks, recalculateProjectOrder]);
 
   // プロジェクトの順序を再計算する関数
-  const recalculateProjectOrder = () => {
+  const recalculateProjectOrder = useCallback(() => {
     const allProjects = [...new Set(tasks
       .map(task => task.project)
       .filter(project => project && project.trim() !== '')
@@ -255,23 +364,9 @@ const TaskManagementApp = () => {
       }
     });
     
-    // 重複しているプロジェクトの順序を再割り当て
-    allProjects.forEach(project => {
-      if (usedOrders.has(newOrder[project])) {
-        // 使用されていない最小の順序を探す
-        while (usedOrders.has(currentOrder)) {
-          currentOrder++;
-        }
-        newOrder[project] = currentOrder;
-        usedOrders.add(currentOrder);
-        currentOrder++;
-      }
-    });
-    
-    console.log('Recalculated project order:', newOrder);
     setProjectOrder(newOrder);
     return newOrder;
-  };
+  }, [tasks, projectOrder]);
 
   // プロジェクトリストの取得（順序を考慮）
   const getProjects = () => {
@@ -296,14 +391,15 @@ const TaskManagementApp = () => {
   const addTask = () => {
     if (newTaskTitle.trim() === '') return;
     
-    // 同じステータスの最大orderを取得
+    // 同じステータスの最大orderを取得して、新しいタスクの順序を設定
     const maxOrder = Math.max(...tasks.filter(t => t.status === TASK_STATUS.TODO).map(t => t.order || 0), -1) + 1;
     
-      const newTask = {
-        id: Date.now(),
-        title: newTaskTitle,
-        status: TASK_STATUS.TODO,
-        dueDate: newTaskDueDate || null,
+    // 新しいタスクオブジェクトを作成
+    const newTask = {
+      id: Date.now(),
+      title: newTaskTitle,
+      status: TASK_STATUS.TODO,
+      dueDate: newTaskDueDate || null, // 日付が選択されていない場合はnull
       project: newTaskProject,
       createdAt: new Date().toISOString(),
       comments: [],
@@ -312,8 +408,11 @@ const TaskManagementApp = () => {
       isCalendarAdded: false, // 予定表追加状態を追加
     };
     
+    // タスクリストに追加
     setTasks([...tasks, newTask]);
-      setNewTaskTitle('');
+    setNewTaskTitle('');
+    setNewTaskDueDate('');
+    setNewTaskProject('');
     
     // タスク追加後にフォーカスを新しいタスク入力に戻す
     if (taskInputRef.current) {
@@ -407,25 +506,30 @@ const TaskManagementApp = () => {
     );
   };
 
-  // タスクの状態を更新
-  const updateTaskStatus = (id, newStatus) => {
-    // 移動先のステータスの最大orderを取得
+  // タスクのステータスを更新
+  const updateTaskStatus = useCallback((taskId, newStatus) => {
+    // 同じカラムの最大orderを取得して、新しい順序を設定
     const maxOrder = Math.max(...tasks.filter(t => t.status === newStatus).map(t => t.order || 0), -1) + 1;
     
-    setTasks(
-      tasks.map(task =>
-        task.id === id ? { 
-          ...task, 
-          status: newStatus,
-          order: maxOrder // 移動先の最後に配置
-        } : task
-      )
+    // タスクのステータスと順序を更新
+    setTasks(prevTasks => 
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          return { ...task, status: newStatus, order: maxOrder };
+        }
+        return task;
+      })
     );
-  };
+  }, [tasks]);
 
-  // タスクを削除
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
+  // タスクを削除する関数
+  const deleteTask = (taskId) => {
+    // 削除前に確認ダイアログを表示
+    if (!window.confirm('タスクを削除してもよろしいですか？')) {
+      return;
+    }
+    // IDが一致しないタスクのみを残して新しい配列を作成
+    setTasks(tasks.filter(task => task.id !== taskId));
   };
 
   // タスク編集モードの開始
@@ -468,7 +572,7 @@ const TaskManagementApp = () => {
   };
 
   // ドラッグ開始ハンドラー
-  const handleDragStart = (taskId, e) => {
+  const handleDragStart = useCallback((taskId, e) => {
     setDraggedTask(taskId);
     
     // ドラッグ中のプレビュー画像を設定
@@ -489,7 +593,7 @@ const TaskManagementApp = () => {
         console.error("Failed to set drag image", err);
       }
     }
-  };
+  }, []);
 
   // ドラッグ終了ハンドラー
   const handleDragEnd = () => {
@@ -517,7 +621,7 @@ const TaskManagementApp = () => {
   };
 
   // フィルター機能の実装
-  const getFilteredTasks = (status) => {
+  const getFilteredTasks = useCallback((status) => {
     let result = tasks.filter(task => {
       // ステータスフィルター
       if (task.status !== status) {
@@ -530,15 +634,15 @@ const TaskManagementApp = () => {
       return true;
     });
       
-      // プロジェクトフィルター
+    // プロジェクトフィルター
     if (projectFilter !== 'all') {
       result = result.filter(task => task.project === projectFilter);
-      }
+    }
       
     // 他のフィルター条件
-      if (filter === 'due-soon') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    if (filter === 'due-soon') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const threeDaysLater = new Date(today);
       threeDaysLater.setDate(today.getDate() + 3);
         
@@ -551,8 +655,8 @@ const TaskManagementApp = () => {
         return dueDate >= today && dueDate <= threeDaysLater;
       });
     } else if (filter === 'overdue') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
         
       result = result.filter(task => {
         if (!task.dueDate) return false;
@@ -568,14 +672,14 @@ const TaskManagementApp = () => {
     result.sort((a, b) => (a.order || 0) - (b.order || 0));
     
     return result;
-  };
+  }, [tasks, projectFilter, filter]);
 
   // サブタスクをフィルタリングする関数を追加
-  const getFilteredSubtasks = (task, status) => {
+  const getFilteredSubtasks = useCallback((task, status) => {
     if (!task.subtasks || task.subtasks.length === 0) return [];
     const filteredSubtasks = task.subtasks.filter(subtask => subtask.status === status);
     return sortSubtasksByDueDate(filteredSubtasks);
-  };
+  }, []);
 
   // サブタスクの編集を開始
   const startEditingSubtask = (taskId, subtaskId, subtaskText) => {
@@ -620,20 +724,20 @@ const TaskManagementApp = () => {
   };
 
   // カンバンカラムコンポーネント
-  const KanbanColumn = ({ title, status, tasks }) => {
+  const KanbanColumn = React.memo(({ title, status, tasks }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     
     // ドロップエリアのイベントハンドラ
-    const handleDragOver = (e) => {
+    const handleDragOver = useCallback((e) => {
       e.preventDefault();
       setIsDragOver(true);
-    };
+    }, []);
     
-    const handleDragLeave = () => {
+    const handleDragLeave = useCallback(() => {
       setIsDragOver(false);
-    };
+    }, []);
     
-    const handleDrop = (e) => {
+    const handleDrop = useCallback((e) => {
       e.preventDefault();
       setIsDragOver(false);
       
@@ -657,22 +761,22 @@ const TaskManagementApp = () => {
       
       // ドラッグ状態をリセット
       setDraggedTask(null);
-    };
+    }, [draggedTask, status, tasks, updateTaskStatus]);
     
     // タスクをプロジェクト別にグループ化
-    const groupTasksByProject = () => {
+    const groupTasksByProject = useCallback(() => {
       const grouped = {};
     
-    tasks.forEach(task => {
+      tasks.forEach(task => {
         const projectName = task.project || 'その他';
         if (!grouped[projectName]) {
           grouped[projectName] = [];
         }
         grouped[projectName].push(task);
       });
-      
+    
       return grouped;
-    };
+    }, [tasks]);
     
     const groupedTasks = groupTasksByProject();
     const hasNoTasks = Object.keys(groupedTasks).length === 0;
@@ -902,7 +1006,7 @@ const TaskManagementApp = () => {
                             {task.subtasks && getFilteredSubtasks(task, status).length > 0 && (
                               <div className="mt-1 space-y-1">
                                 {getFilteredSubtasks(task, status).map(subtask => (
-                                  <div key={subtask.id} className="flex items-center text-sm">
+                                  <div key={subtask.id} className="flex items-center mb-1 hover:bg-gray-100 p-1 rounded">
                                     <div className="flex items-center mr-2">
                                       <button
                                         onClick={() => promoteSubtask(task.id, subtask.id)}
@@ -930,38 +1034,13 @@ const TaskManagementApp = () => {
                                       onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
                                       className="mr-2"
                                     />
-                                    {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
-                                      <form 
-                                        onSubmit={(e) => {
-                                          e.preventDefault();
-                                          saveSubtaskEdit(task.id, subtask.id);
-                                        }}
-                                        className="flex-1"
-                                      >
-                                        <input
-                                          ref={subtaskEditRef}
-                                          type="text"
-                                          className="w-full border rounded px-1 py-0.5 text-sm"
-                                          onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Escape') {
-                                              e.preventDefault();
-                                              cancelSubtaskEdit();
-                                            }
-                                          }}
-                                          style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
-                                        />
-                                      </form>
-                                    ) : (
-                                      <span 
-                                        className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                        style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
-                                        onDoubleClick={() => startEditingSubtask(task.id, subtask.id, subtask.text)}
-                                      >
-                                        {subtask.text}
-                                      </span>
-                                    )}
-                                    <div className="flex items-center">
+                                    <span 
+                                      className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : ''}`}
+                                      style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                    >
+                                      {subtask.text}
+                                    </span>
+                                    <div className="ml-auto flex items-center">
                                       <select
                                         className="text-xs p-0 border rounded mr-1"
                                         value={subtask.status || TASK_STATUS.TODO}
@@ -989,19 +1068,24 @@ const TaskManagementApp = () => {
                                         </svg>
                                       </button>
                                       {subtask.dueDate && (
-                                        <button
-                                          className={`text-xs flex items-center ml-1 ${
-                                            subtask.isCalendarAdded
-                                              ? 'text-green-700'
-                                              : 'text-blue-500 hover:text-blue-700'
-                                          }`}
-                                          onClick={() => generateICSFile(task, true, subtask)}
-                                          title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                          </svg>
-                                        </button>
+                                        <>
+                                          <span className="text-xs ml-1 mr-1 task-date">
+                                            {formatDate(subtask.dueDate)}
+                                          </span>
+                                          <button
+                                            className={`text-xs flex items-center ${
+                                              subtask.isCalendarAdded
+                                                ? 'text-green-700'
+                                                : 'text-blue-500 hover:text-blue-700'
+                                            }`}
+                                            onClick={() => generateICSFile(task, true, subtask)}
+                                            title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                          </button>
+                                        </>
                                       )}
                                     </div>
                                   </div>
@@ -1030,19 +1114,24 @@ const TaskManagementApp = () => {
                             削除
                           </button>
                           {task.dueDate && (
-                            <button
-                              className={`text-xs flex items-center ${
-                                task.isCalendarAdded
-                                  ? 'text-green-700'
-                                  : 'text-blue-500 hover:text-blue-700'
-                              }`}
-                              onClick={() => generateICSFile(task)}
-                              title={task.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </button>
+                            <>
+                              <span className="text-xs ml-1 mr-1 task-date">
+                                {formatDate(task.dueDate)}
+                              </span>
+                              <button
+                                className={`text-xs flex items-center ${
+                                  task.isCalendarAdded
+                                    ? 'text-green-700'
+                                    : 'text-blue-500 hover:text-blue-700'
+                                }`}
+                                onClick={() => generateICSFile(task)}
+                                title={task.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1179,83 +1268,46 @@ const TaskManagementApp = () => {
                           {task.subtasks && getFilteredSubtasks(task, status).length > 0 && (
                             <div className="mt-1 space-y-1">
                               {getFilteredSubtasks(task, status).map(subtask => (
-                                <div key={subtask.id} className="flex flex-col py-2 px-3 hover:bg-gray-50">
-                                  <div className="flex items-center">
-                                    <div className="flex items-center mr-2">
-                                      <button
-                                        onClick={() => promoteSubtask(task.id, subtask.id)}
-                                        className="text-gray-500 hover:text-gray-700 mr-1"
-                                        title="レベル上げ"
-                                        disabled={(subtask.level || 0) === 0}
-                                      >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                        </svg>
-                                      </button>
-                                      <button
-                                        onClick={() => demoteSubtask(task.id, subtask.id)}
-                                        className="text-gray-500 hover:text-gray-700"
-                                        title="レベル下げ"
-                                      >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                    <input
-                                      type="checkbox"
-                                      checked={subtask.completed}
-                                      onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
-                                      className="mr-2"
-                                    />
-                                    {editingSubtaskId && editingSubtaskId.taskId === task.id && editingSubtaskId.subtaskId === subtask.id ? (
-                                      <form 
-                                        onSubmit={(e) => {
-                                          e.preventDefault();
-                                          saveSubtaskEdit(task.id, subtask.id);
-                                        }}
-                                        className="flex-1"
-                                      >
-                                        <input
-                                          ref={subtaskEditRef}
-                                          type="text"
-                                          className="w-full border rounded px-1 py-0.5 text-sm"
-                                          onBlur={() => saveSubtaskEdit(task.id, subtask.id)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Escape') {
-                                              e.preventDefault();
-                                              cancelSubtaskEdit();
-                                            }
-                                          }}
-                                          style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
-                                        />
-                                      </form>
-                                    ) : (
-                                      <span 
-                                        className={`flex-1 ${subtask.completed ? 'line-through text-gray-400' : ''}`} 
-                                        style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
-                                        onDoubleClick={() => startEditingSubtask(task.id, subtask.id, subtask.text)}
-                                      >
-                                        {subtask.text}
-                                      </span>
-                                    )}
+                                <div key={subtask.id} className="flex items-center mb-1 hover:bg-gray-100 p-1 rounded">
+                                  <div className="flex items-center mr-2">
                                     <button
-                                      onClick={() => deleteSubtask(task.id, subtask.id)}
-                                      className="text-red-500 hover:text-red-700 ml-2"
-                                      title="削除"
+                                      onClick={() => promoteSubtask(task.id, subtask.id)}
+                                      className="text-gray-500 hover:text-gray-700 mr-1"
+                                      title="レベル上げ"
+                                      disabled={(subtask.level || 0) === 0}
                                     >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => demoteSubtask(task.id, subtask.id)}
+                                      className="text-gray-500 hover:text-gray-700"
+                                      title="レベル下げ"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                       </svg>
                                     </button>
                                   </div>
-                                  
-                                  <div className="flex items-center mt-1 ml-8">
+                                  <input
+                                    type="checkbox"
+                                    checked={subtask.completed}
+                                    onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                    className="mr-2"
+                                  />
+                                  <span 
+                                    className={`text-sm ${subtask.completed ? 'line-through text-gray-400' : ''}`}
+                                    style={{ marginLeft: `${(subtask.level || 0) * 20}px` }}
+                                  >
+                                    {subtask.text}
+                                  </span>
+                                  <div className="ml-auto flex items-center">
                                     <select
                                       className="text-xs p-0 border rounded mr-1"
                                       value={subtask.status || TASK_STATUS.TODO}
                                       onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
-                                      style={{ maxWidth: '60px' }}
+                                      style={{ maxWidth: '80px' }}
                                     >
                                       <option value={TASK_STATUS.TODO}>未</option>
                                       <option value={TASK_STATUS.IN_PROGRESS}>進</option>
@@ -1268,20 +1320,34 @@ const TaskManagementApp = () => {
                                       onChange={(e) => setSubtaskDueDate(task.id, subtask.id, e.target.value)}
                                       style={{ width: '110px' }}
                                     />
+                                    <button
+                                      onClick={() => deleteSubtask(task.id, subtask.id)}
+                                      className="text-red-500 hover:text-red-700 ml-1"
+                                      title="削除"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
                                     {subtask.dueDate && (
-                                      <button
-                                        className={`text-xs flex items-center ml-1 ${
-                                          subtask.isCalendarAdded
-                                            ? 'text-green-700'
-                                            : 'text-blue-500 hover:text-blue-700'
-                                        }`}
-                                        onClick={() => generateICSFile(task, true, subtask)}
-                                        title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
-                                      >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                      </button>
+                                      <>
+                                        <span className="text-xs ml-1 mr-1 task-date">
+                                          {formatDate(subtask.dueDate)}
+                                        </span>
+                                        <button
+                                          className={`text-xs flex items-center ${
+                                            subtask.isCalendarAdded
+                                              ? 'text-green-700'
+                                              : 'text-blue-500 hover:text-blue-700'
+                                          }`}
+                                          onClick={() => generateICSFile(task, true, subtask)}
+                                          title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          </svg>
+                                        </button>
+                                      </>
                                     )}
                                   </div>
                                 </div>
@@ -1310,19 +1376,24 @@ const TaskManagementApp = () => {
                           削除
                         </button>
                         {task.dueDate && (
-                          <button
-                            className={`text-xs flex items-center ${
-                              task.isCalendarAdded
-                                ? 'text-green-700'
-                                : 'text-blue-500 hover:text-blue-700'
-                            }`}
-                            onClick={() => generateICSFile(task)}
-                            title={task.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </button>
+                          <>
+                            <span className="text-xs ml-1 mr-1 task-date">
+                              {formatDate(task.dueDate)}
+                            </span>
+                            <button
+                              className={`text-xs flex items-center ${
+                                task.isCalendarAdded
+                                  ? 'text-green-700'
+                                  : 'text-blue-500 hover:text-blue-700'
+                              }`}
+                              onClick={() => generateICSFile(task)}
+                              title={task.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -1339,66 +1410,9 @@ const TaskManagementApp = () => {
         </div>
       </div>
     );
-  };
+  });
 
-  const customStyles = `
-    .h-screen-minus-header {
-      height: auto;
-      max-height: 500px;
-    }
-    
-    .task-card {
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .task-card:hover {
-      transform: translateX(3px);
-    }
-    
-    .column-transition {
-      transition: background-color 0.3s;
-    }
-    
-    .column-transition:hover {
-      background-color: #f3f4f6;
-    }
-
-    /* レスポンシブデザインの改善 */
-    @media (max-width: 768px) {
-      .flex.items-center {
-        flex-wrap: wrap;
-        gap: 4px;
-      }
-      
-      /* カンバンボードのカラム */
-      .flex.justify-between.mt-6 {
-        flex-direction: column;
-      }
-      
-      .w-1/3 {
-        width: 100%;
-        margin-bottom: 1rem;
-      }
-      
-      /* サブタスクの表示を改善 */
-      .flex.items-center.text-sm {
-        flex-wrap: wrap;
-      }
-      
-      .flex.items-center.text-sm > .flex-1 {
-        width: 100%;
-        margin-bottom: 4px;
-      }
-      
-      .flex.items-center.text-sm > .flex.items-center {
-        width: 100%;
-        justify-content: flex-start;
-        margin-top: 4px;
-        margin-left: 20px;
-      }
-    }
-  `;
-
+  // タスクの統計情報を取得
   const getTaskStats = () => {
     const todoCount = tasks.filter(t => t.status === TASK_STATUS.TODO).length;
     const inProgressCount = tasks.filter(t => t.status === TASK_STATUS.IN_PROGRESS).length;
@@ -1489,9 +1503,10 @@ const TaskManagementApp = () => {
     document.body.removeChild(link);
   };
 
-  // サブタスクを追加
+  // サブタスクを追加する関数
   const addSubtask = (taskId, subtaskText) => {
     if (subtaskText.trim()) {
+      // タスクリストを更新し、指定されたタスクIDのサブタスクリストに新しいサブタスクを追加
       setTasks(prevTasks =>
         prevTasks.map(task =>
           task.id === taskId
@@ -1711,18 +1726,20 @@ const TaskManagementApp = () => {
 
     // タスク一覧の状態が更新された場合にモーダル内のタスク情報を更新
     useEffect(() => {
-      const updatedTask = tasks.find(t => t.id === currentTask?.id);
-      if (updatedTask) {
-        setCurrentTask(updatedTask);
+      const taskId = currentTask?.id;
+      if (taskId) {
+        const updatedTask = tasks.find(t => t.id === taskId);
+        if (updatedTask) {
+          setCurrentTask(updatedTask);
+        }
       }
-    }, [tasks]);
+    }, [tasks, currentTask?.id]);
 
     // スクロール位置を保持して復元
-    const preserveScrollPosition = (callback) => {
+    const preserveScrollPosition = useCallback((callback) => {
       // 現在のスクロール位置を保存
       if (modalContentRef.current) {
-        const currentScroll = modalContentRef.current.scrollTop;
-        setModalScrollPosition(currentScroll);
+        setModalScrollPosition(modalContentRef.current.scrollTop);
       }
       
       // コールバック実行
@@ -1734,7 +1751,7 @@ const TaskManagementApp = () => {
           modalContentRef.current.scrollTop = modalScrollPosition;
         }
       });
-    };
+    }, [modalScrollPosition]);
 
     if (!currentTask) return null;
 
@@ -1986,19 +2003,24 @@ const TaskManagementApp = () => {
                                 </svg>
                               </button>
                               {subtask.dueDate && (
-                                <button
-                                  className={`text-xs flex items-center ml-1 ${
-                                    subtask.isCalendarAdded
-                                      ? 'text-green-700'
-                                      : 'text-blue-500 hover:text-blue-700'
-                                  }`}
-                                  onClick={() => generateICSFile(currentTask, true, subtask)}
-                                  title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                </button>
+                                <>
+                                  <span className="text-xs ml-1 mr-1 task-date">
+                                    {formatDate(subtask.dueDate)}
+                                  </span>
+                                  <button
+                                    className={`text-xs flex items-center ${
+                                      subtask.isCalendarAdded
+                                        ? 'text-green-700'
+                                        : 'text-blue-500 hover:text-blue-700'
+                                    }`}
+                                    onClick={() => generateICSFile(currentTask, true, subtask)}
+                                    title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -2548,12 +2570,94 @@ const TaskManagementApp = () => {
     );
   };
 
+  // データをJSONファイルとしてエクスポートする関数
+  const exportData = () => {
+    const data = {
+      tasks: tasks,
+      projectOrder: projectOrder
+    };
+    
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kanban-tasks-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  
+  // JSONファイルからデータをインポートする関数
+  const importData = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.tasks && Array.isArray(data.tasks)) {
+          setTasks(data.tasks);
+          if (data.projectOrder) {
+            setProjectOrder(data.projectOrder);
+          }
+          alert('データを正常にインポートしました。');
+        } else {
+          alert('無効なデータ形式です。');
+        }
+      } catch (error) {
+        alert('データの解析中にエラーが発生しました: ' + error.message);
+      }
+    };
+    reader.readAsText(file);
+    
+    // ファイル選択をリセット（同じファイルを再度選択できるように）
+    event.target.value = '';
+  };
+  
+  // ファイル選択ダイアログを開く
+  const openFileDialog = () => {
+    fileInputRef.current.click();
+  };
+
   return (
     <div className="w-screen min-h-screen p-4 bg-white rounded-lg shadow-lg max-w-none">
       <style>{customStyles}</style>
-      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理 v{version}</h1>
+      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理 v1.1.8</h1>
       
-      {/* 新しいタスク入力フォーム */}
+      {/* データのインポート・エクスポートボタン - JSONデータの保存と読み込み */}
+      <div className="flex justify-center mb-4">
+        <button
+          onClick={exportData}
+          className="mx-1 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          エクスポート
+        </button>
+        <button
+          onClick={openFileDialog}
+          className="mx-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          インポート
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={importData}
+          accept=".json"
+          style={{ display: 'none' }}
+        />
+      </div>
+      
+      {/* 新しいタスク入力フォーム - タスクタイトル、締め切り日、プロジェクト設定 */}
       <div className="mb-4">
         <div className="flex mb-2">
           <input
@@ -2574,6 +2678,7 @@ const TaskManagementApp = () => {
           </button>
         </div>
         <div className="flex flex-col md:flex-row gap-2">
+          {/* 締め切り日入力フィールド */}
           <div className="flex-1">
             <label className="block text-sm text-gray-600 mb-1">締め切り日：</label>
             <input
@@ -2583,6 +2688,7 @@ const TaskManagementApp = () => {
               onChange={(e) => setNewTaskDueDate(e.target.value)}
             />
           </div>
+          {/* プロジェクト入力フィールド - データリスト付き */}
           <div className="flex-1">
             <label className="block text-sm text-gray-600 mb-1">プロジェクト：</label>
             <div className="flex">
@@ -2602,6 +2708,7 @@ const TaskManagementApp = () => {
                 クリア
               </button>
             </div>
+            {/* 既存プロジェクト名の候補リスト */}
             <datalist id="project-list">
               {getProjects().map(project => (
                 <option key={project} value={project} />
@@ -2610,11 +2717,12 @@ const TaskManagementApp = () => {
           </div>
         </div>
       </div>
-      
-      {/* フィルターとカレンダーエクスポートボタン */}
+
+      {/* フィルターとカレンダーエクスポートボタン - タスク表示条件の選択 */}
       <div className="mb-4">
         <div className="flex flex-wrap justify-between mb-2">
           <div className="flex flex-wrap">
+            {/* タスク表示フィルターボタン */}
             <button
               className={`m-1 px-3 py-1 rounded ${filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
               onClick={() => setFilter('all')}
@@ -2634,6 +2742,7 @@ const TaskManagementApp = () => {
               期限切れ
             </button>
           </div>
+          {/* カレンダー出力ボタン - すべてのタスクをカレンダーにエクスポート */}
           <button
             className="m-1 px-3 py-1 rounded bg-purple-500 text-white flex items-center hover:bg-purple-600 transition-colors"
             onClick={exportAllTasksToCalendar}
@@ -2645,8 +2754,8 @@ const TaskManagementApp = () => {
             カレンダー出力
           </button>
         </div>
-        
-        {/* プロジェクトフィルター */}
+
+        {/* プロジェクトフィルター - プロジェクト別の表示切替 */}
         <div className="flex justify-center">
           <div className="inline-flex rounded-md shadow-sm" role="group">
             <button
@@ -2670,19 +2779,23 @@ const TaskManagementApp = () => {
           </div>
         </div>
       </div>
-      {/* カンバンボード */}
+      
+      {/* カンバンボード - ドラッグ&ドロップでタスク状態を変更可能 */}
       <div className="min-w-[500px] w-full flex flex-row justify-evenly overflow-x-auto pb-4 h-[calc(100vh-200px)]"
       style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%',minwidth: '350px'}}>
+        {/* 未着手カラム - 新規タスクのデフォルト状態 */}
         <KanbanColumn 
           title="未着手" 
           status={TASK_STATUS.TODO}
           tasks={getFilteredTasks(TASK_STATUS.TODO)} 
         />
+        {/* 進行中カラム - 作業中のタスク */}
         <KanbanColumn 
           title="進行中" 
           status={TASK_STATUS.IN_PROGRESS}
           tasks={getFilteredTasks(TASK_STATUS.IN_PROGRESS)} 
         />
+        {/* 完了カラム - 終了したタスク */}
         <KanbanColumn 
           title="完了" 
           status={TASK_STATUS.DONE}
@@ -2690,13 +2803,13 @@ const TaskManagementApp = () => {
         />
       </div>
 
-      {/* 操作ガイド */}
+      {/* 操作ガイド - ユーザーヘルプ情報 */}
       <div className="mt-4 bg-blue-50 p-3 rounded text-sm text-blue-700">
         <p>使い方: タスクカードを横方向にドラッグ＆ドロップして状態を変更できます。カードをつかんで左右に移動してみましょう。</p>
         <p className="mt-1">カレンダー連携: 各タスクの「予定追加」ボタンをクリックすると.icsファイルがダウンロードされ、Outlookなどのカレンダーに予定として追加できます。</p>
       </div>
       
-      {/* フッター情報 */}
+      {/* フッター情報 - タスク統計情報の表示 */}
       <div className="mt-4 text-center text-sm text-gray-500">
         {(() => {
           const stats = getTaskStats();
@@ -2711,7 +2824,7 @@ const TaskManagementApp = () => {
         })()}
       </div>
 
-      {/* タスク詳細モーダル */}
+      {/* タスク詳細モーダル - タスク詳細表示と編集 */}
       <TaskDetailModal
         task={selectedTask}
         onClose={() => setSelectedTask(null)}

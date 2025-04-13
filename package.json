@@ -2,7 +2,7 @@
   "name": "task-management-app",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://yugao.github.io/kanbantask",
+  "homepage": "https://yuga-otake.github.io/kanbantask",
   "dependencies": {
     "@craco/craco": "^7.1.0",
     "@testing-library/dom": "^10.4.0",
