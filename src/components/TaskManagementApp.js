@@ -1700,10 +1700,11 @@ const TaskManagementApp = () => {
   };
 
   // 詳細モーダルコンポーネント
-  const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
+  const TaskDetailModal = ({ task, onClose }) => {
+    const subtaskInputRef = React.useRef(null);
+    
     // 現在のタスク情報を取得するための状態変数
     const [currentTask, setCurrentTask] = useState(task);
-    const subtaskInputRef = React.useRef(null);
     
     // タスクが変更された場合に更新
     useEffect(() => {
@@ -1720,20 +1721,10 @@ const TaskManagementApp = () => {
 
     const handleCommentSubmit = (e) => {
       e.preventDefault();
-      const commentText = commentInputs[currentTask.id] || '';
-      if (commentText.trim()) {
-        addComment(currentTask.id);
-      }
+      addComment(currentTask.id);
     };
 
-    const handleCommentChange = (e) => {
-      const newValue = e.target.value;
-      setCommentInputs(prev => ({
-        ...prev,
-        [currentTask.id]: newValue
-      }));
-    };
-
+    // サブタスク追加のハンドラ
     const handleSubtaskSubmit = (e) => {
       e.preventDefault();
       if (subtaskInputRef.current) {
@@ -2218,10 +2209,7 @@ const TaskManagementApp = () => {
             </div>
             
             {/* コメント入力フォーム */}
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              addComment(currentTask.id);
-            }}>
+            <form onSubmit={handleCommentSubmit}>
               <textarea
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -2599,8 +2587,6 @@ const TaskManagementApp = () => {
       <TaskDetailModal
         task={selectedTask}
         onClose={() => setSelectedTask(null)}
-        onAddComment={addComment}
-        onDeleteComment={deleteComment}
       />
     </div>
   );
