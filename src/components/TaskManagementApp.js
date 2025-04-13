@@ -1697,31 +1697,23 @@ const TaskManagementApp = () => {
     const subtaskInputRef = React.useRef(null);
     const commentInputRef = React.useRef(null);
     const [currentTask, setCurrentTask] = useState(task);
+    const [localCommentInput, setLocalCommentInput] = useState('');
 
     // タスクが変更された場合に更新
     useEffect(() => {
       if (task) {
         setCurrentTask(task);
+        setLocalCommentInput(commentInputs[task.id] || '');
       }
-    }, [task]);
+    }, [task, commentInputs]);
 
     if (!currentTask) return null;
 
     const handleCommentSubmit = (e) => {
       e.preventDefault();
-      addComment(currentTask.id);
-      // コメント追加後にフォーカスを維持
-      setTimeout(() => {
-        if (commentInputRef.current) {
-          commentInputRef.current.focus();
-        }
-      }, 0);
-    };
-
-    const handleCommentKeyDown = (e) => {
-      if (e.ctrlKey && e.key === 'Enter') {
-        e.preventDefault();
+      if (localCommentInput.trim()) {
         addComment(currentTask.id);
+        setLocalCommentInput('');
         // コメント追加後にフォーカスを維持
         setTimeout(() => {
           if (commentInputRef.current) {
@@ -1731,12 +1723,26 @@ const TaskManagementApp = () => {
       }
     };
 
+    const handleCommentKeyDown = (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (localCommentInput.trim()) {
+          addComment(currentTask.id);
+          setLocalCommentInput('');
+          // コメント追加後にフォーカスを維持
+          setTimeout(() => {
+            if (commentInputRef.current) {
+              commentInputRef.current.focus();
+            }
+          }, 0);
+        }
+      }
+    };
+
     const handleCommentInputChange = (e) => {
       const newValue = e.target.value;
-      setCommentInputs(prev => ({
-        ...prev,
-        [currentTask.id]: newValue
-      }));
+      setLocalCommentInput(newValue);
+      handleCommentChange(currentTask.id, newValue);
     };
 
     // サブタスク追加のハンドラ
@@ -2230,7 +2236,7 @@ const TaskManagementApp = () => {
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
-                value={commentInputs[currentTask.id] || ''}
+                value={localCommentInput}
                 onChange={handleCommentInputChange}
                 onKeyDown={handleCommentKeyDown}
               />
