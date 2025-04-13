@@ -350,7 +350,7 @@ const TaskManagementApp = () => {
     }, 100);
   };
 
-  // コメント入力の状態を更新
+  // コメント入力の変更を処理
   const handleCommentChange = (taskId, value) => {
     setCommentInputs(prev => ({
       ...prev,
@@ -371,17 +371,16 @@ const TaskManagementApp = () => {
       };
       
       // タスクの状態を更新
-      const updatedTasks = tasks.map(task =>
-        task.id === taskId
-          ? {
-              ...task,
-              comments: [...(task.comments || []), newComment],
-            }
-          : task
+      setTasks(prevTasks => 
+        prevTasks.map(task =>
+          task.id === taskId
+            ? {
+                ...task,
+                comments: [...(task.comments || []), newComment],
+              }
+            : task
+        )
       );
-      
-      // タスク状態を更新
-      setTasks(updatedTasks);
       
       // コメント入力欄をクリア
       setCommentInputs(prev => ({
@@ -393,24 +392,16 @@ const TaskManagementApp = () => {
 
   // コメントを削除
   const deleteComment = (taskId, commentId) => {
-    // タスクの状態を更新
-    const updatedTasks = tasks.map(task =>
-      task.id === taskId
-        ? {
-            ...task,
-            comments: task.comments.filter(comment => comment.id !== commentId),
-          }
-        : task
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              comments: task.comments.filter(comment => comment.id !== commentId),
+            }
+          : task
+      )
     );
-    
-    // タスク状態を更新
-    setTasks(updatedTasks);
-    
-    // 選択中のタスクも更新して表示を反映
-    const updatedTask = updatedTasks.find(task => task.id === taskId);
-    if (updatedTask && selectedTask && selectedTask.id === taskId) {
-      setSelectedTask(updatedTask);
-    }
   };
 
   // タスクの状態を更新
@@ -1702,26 +1693,31 @@ const TaskManagementApp = () => {
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose }) => {
     const subtaskInputRef = React.useRef(null);
-    
-    // 現在のタスク情報を取得するための状態変数
     const [currentTask, setCurrentTask] = useState(task);
-    
+
     // タスクが変更された場合に更新
     useEffect(() => {
       if (task) {
-        // tasksステート配列から最新のタスク情報を取得
-        const updatedTask = tasks.find(t => t.id === task.id);
-        if (updatedTask) {
-          setCurrentTask(updatedTask);
-        }
+        setCurrentTask(task);
       }
-    }, [task, tasks]);
-    
+    }, [task]);
+
     if (!currentTask) return null;
 
     const handleCommentSubmit = (e) => {
       e.preventDefault();
       addComment(currentTask.id);
+    };
+
+    const handleCommentKeyDown = (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        addComment(currentTask.id);
+      }
+    };
+
+    const handleCommentInputChange = (e) => {
+      handleCommentChange(currentTask.id, e.target.value);
     };
 
     // サブタスク追加のハンドラ
@@ -2215,13 +2211,8 @@ const TaskManagementApp = () => {
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
                 value={commentInputs[currentTask.id] || ''}
-                onChange={(e) => handleCommentChange(currentTask.id, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.ctrlKey && e.key === 'Enter') {
-                    e.preventDefault();
-                    addComment(currentTask.id);
-                  }
-                }}
+                onChange={handleCommentInputChange}
+                onKeyDown={handleCommentKeyDown}
               />
               <button
                 type="submit"
