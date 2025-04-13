@@ -1698,45 +1698,75 @@ const TaskManagementApp = () => {
     const commentInputRef = React.useRef(null);
     const modalContentRef = React.useRef(null);
     const [currentTask, setCurrentTask] = useState(task);
-    const [localCommentInput, setLocalCommentInput] = useState('');
-    const [scrollPosition, setScrollPosition] = useState(0);
+    // 完全に独立したローカル状態として実装
+    const [commentText, setCommentText] = useState('');
+    const [modalScrollPosition, setModalScrollPosition] = useState(0);
 
     // タスクが変更された場合に更新
     useEffect(() => {
       if (task) {
         setCurrentTask(task);
-        setLocalCommentInput(commentInputs[task.id] || '');
       }
     }, [task]);
 
-    // スクロール位置を保持
+    // タスク一覧の状態が更新された場合にモーダル内のタスク情報を更新
     useEffect(() => {
-      if (modalContentRef.current) {
-        modalContentRef.current.scrollTop = scrollPosition;
+      const updatedTask = tasks.find(t => t.id === currentTask?.id);
+      if (updatedTask) {
+        setCurrentTask(updatedTask);
       }
-    }, [scrollPosition]);
+    }, [tasks]);
+
+    // スクロール位置を保持して復元
+    const preserveScrollPosition = (callback) => {
+      // 現在のスクロール位置を保存
+      if (modalContentRef.current) {
+        const currentScroll = modalContentRef.current.scrollTop;
+        setModalScrollPosition(currentScroll);
+      }
+      
+      // コールバック実行
+      callback();
+      
+      // スクロール位置を復元
+      requestAnimationFrame(() => {
+        if (modalContentRef.current) {
+          modalContentRef.current.scrollTop = modalScrollPosition;
+        }
+      });
+    };
 
     if (!currentTask) return null;
 
     const handleCommentSubmit = (e) => {
       e.preventDefault();
-      if (localCommentInput.trim()) {
-        // 現在のスクロール位置を保存
-        if (modalContentRef.current) {
-          setScrollPosition(modalContentRef.current.scrollTop);
-        }
+      if (commentText.trim()) {
+        // 新しいコメントオブジェクトを作成
+        const newComment = {
+          id: Date.now(),
+          text: commentText.trim(),
+          createdAt: new Date().toISOString(),
+        };
         
-        addComment(currentTask.id);
-        setLocalCommentInput('');
+        // タスクの状態を直接更新
+        setTasks(prevTasks => 
+          prevTasks.map(t =>
+            t.id === currentTask.id
+              ? {
+                  ...t,
+                  comments: [...(t.comments || []), newComment],
+                }
+              : t
+          )
+        );
         
-        // コメント追加後にフォーカスを維持
+        // 入力欄をクリア
+        setCommentText('');
+        
+        // フォーカスを維持
         requestAnimationFrame(() => {
           if (commentInputRef.current) {
             commentInputRef.current.focus();
-          }
-          // スクロール位置を復元
-          if (modalContentRef.current) {
-            modalContentRef.current.scrollTop = scrollPosition;
           }
         });
       }
@@ -1745,45 +1775,12 @@ const TaskManagementApp = () => {
     const handleCommentKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
-        if (localCommentInput.trim()) {
-          // 現在のスクロール位置を保存
-          if (modalContentRef.current) {
-            setScrollPosition(modalContentRef.current.scrollTop);
-          }
-          
-          addComment(currentTask.id);
-          setLocalCommentInput('');
-          
-          // コメント追加後にフォーカスを維持
-          requestAnimationFrame(() => {
-            if (commentInputRef.current) {
-              commentInputRef.current.focus();
-            }
-            // スクロール位置を復元
-            if (modalContentRef.current) {
-              modalContentRef.current.scrollTop = scrollPosition;
-            }
-          });
-        }
+        handleCommentSubmit(e);
       }
     };
 
     const handleCommentInputChange = (e) => {
-      const newValue = e.target.value;
-      // 現在のスクロール位置を保存
-      if (modalContentRef.current) {
-        setScrollPosition(modalContentRef.current.scrollTop);
-      }
-      
-      setLocalCommentInput(newValue);
-      handleCommentChange(currentTask.id, newValue);
-      
-      // スクロール位置を復元
-      requestAnimationFrame(() => {
-        if (modalContentRef.current) {
-          modalContentRef.current.scrollTop = scrollPosition;
-        }
-      });
+      setCommentText(e.target.value);
     };
 
     // サブタスク追加のハンドラ
@@ -2252,25 +2249,29 @@ const TaskManagementApp = () => {
           {/* コメントセクション */}
           <div className="mt-6">
             <h3 className="font-semibold text-gray-700 mb-2">コメント</h3>
-            <div className="space-y-4 mb-4">
-              {currentTask.comments && currentTask.comments.map(comment => (
-                <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <p className="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
-                    <button
-                      onClick={() => deleteComment(currentTask.id, comment.id)}
-                      className="text-red-500 hover:text-red-700 ml-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+            
+            {/* コメント一覧 */}
+            <div className="space-y-3 mb-4">
+              {currentTask.comments && currentTask.comments.length > 0 ? (
+                currentTask.comments.map(comment => (
+                  <div key={comment.id} className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <p className="whitespace-pre-wrap">{comment.text}</p>
+                      <button
+                        onClick={() => deleteComment(currentTask.id, comment.id)}
+                        className="text-red-500 hover:text-red-700 ml-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{formatDate(comment.createdAt)}</p>
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {formatDate(comment.createdAt)}
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 italic">コメントはまだありません</p>
+              )}
             </div>
             
             {/* コメント入力フォーム */}
@@ -2280,7 +2281,7 @@ const TaskManagementApp = () => {
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
-                value={localCommentInput}
+                value={commentText}
                 onChange={handleCommentInputChange}
                 onKeyDown={handleCommentKeyDown}
               />
