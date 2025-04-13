@@ -5,8 +5,12 @@ const TaskManagementApp = () => {
 
   // 日付をフォーマットする関数
   const formatDate = (dateString) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
-    return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+    return date.toLocaleDateString('ja-JP', {
+      month: '2-digit',
+      day: '2-digit'
+    });
   };
 
   // .ics ファイルを生成する関数
@@ -967,9 +971,9 @@ const TaskManagementApp = () => {
                                         onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
                                         style={{ maxWidth: '80px' }}
                                       >
-                                        <option value={TASK_STATUS.TODO}>未着手</option>
-                                        <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                                        <option value={TASK_STATUS.DONE}>完了</option>
+                                        <option value={TASK_STATUS.TODO}>未</option>
+                                        <option value={TASK_STATUS.IN_PROGRESS}>進</option>
+                                        <option value={TASK_STATUS.DONE}>完</option>
                                       </select>
                                       <input
                                         type="date"
@@ -989,18 +993,17 @@ const TaskManagementApp = () => {
                                       </button>
                                       {subtask.dueDate && (
                                         <button
-                                          className={`text-xs flex items-center ml-1 border rounded px-1 ${
+                                          className={`text-xs flex items-center ml-1 ${
                                             subtask.isCalendarAdded
-                                              ? 'bg-green-100 text-green-700 border-green-200'
-                                              : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                                              ? 'text-green-700'
+                                              : 'text-blue-500 hover:text-blue-700'
                                           }`}
                                           onClick={() => generateICSFile(task, true, subtask)}
-                                          title={subtask.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
+                                          title={subtask.isCalendarAdded ? "カレンダーに追加済み" : "カレンダーに追加"}
                                         >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                           </svg>
-                                          <span>{subtask.isCalendarAdded ? "済" : "予定"}</span>
                                         </button>
                                       )}
                                     </div>
@@ -1246,9 +1249,9 @@ const TaskManagementApp = () => {
                                       onChange={(e) => updateSubtaskStatus(task.id, subtask.id, e.target.value)}
                                       style={{ maxWidth: '80px' }}
                                     >
-                                      <option value={TASK_STATUS.TODO}>未着手</option>
-                                      <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                                      <option value={TASK_STATUS.DONE}>完了</option>
+                                      <option value={TASK_STATUS.TODO}>未</option>
+                                      <option value={TASK_STATUS.IN_PROGRESS}>進</option>
+                                      <option value={TASK_STATUS.DONE}>完</option>
                                     </select>
                                     <input
                                       type="date"
@@ -1268,10 +1271,10 @@ const TaskManagementApp = () => {
                                     </button>
                                     {subtask.dueDate && (
                                       <button
-                                        className={`text-xs flex items-center ml-1 border rounded px-1 ${
+                                        className={`text-xs flex items-center ml-1 ${
                                           subtask.isCalendarAdded
-                                            ? 'bg-green-100 text-green-700 border-green-200'
-                                            : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                                            ? 'text-green-700'
+                                            : 'text-blue-500 hover:text-blue-700'
                                         }`}
                                         onClick={() => generateICSFile(task, true, subtask)}
                                         title={subtask.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
@@ -1965,9 +1968,9 @@ const TaskManagementApp = () => {
                                 onChange={(e) => updateSubtaskStatus(currentTask.id, subtask.id, e.target.value)}
                                 style={{ maxWidth: '80px' }}
                               >
-                                <option value={TASK_STATUS.TODO}>未着手</option>
-                                <option value={TASK_STATUS.IN_PROGRESS}>進行中</option>
-                                <option value={TASK_STATUS.DONE}>完了</option>
+                                <option value={TASK_STATUS.TODO}>未</option>
+                                <option value={TASK_STATUS.IN_PROGRESS}>進</option>
+                                <option value={TASK_STATUS.DONE}>完</option>
                               </select>
                               <input
                                 type="date"
@@ -1987,10 +1990,10 @@ const TaskManagementApp = () => {
                               </button>
                               {subtask.dueDate && (
                                 <button
-                                  className={`text-xs flex items-center ml-1 border rounded px-1 ${
+                                  className={`text-xs flex items-center ml-1 ${
                                     subtask.isCalendarAdded
-                                      ? 'bg-green-100 text-green-700 border-green-200'
-                                      : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
+                                      ? 'text-green-700'
+                                      : 'text-blue-500 hover:text-blue-700'
                                   }`}
                                   onClick={() => generateICSFile(currentTask, true, subtask)}
                                   title={subtask.isCalendarAdded ? "予定表に追加済み" : "Outlookカレンダーに追加"}
@@ -2103,7 +2106,7 @@ const TaskManagementApp = () => {
                               </button>
                               {subtask.dueDate && (
                                 <button
-                                  className={`text-xs flex items-center ml-1 border rounded px-1 ${
+                                  className={`text-xs flex items-center ml-1 ${
                                     subtask.isCalendarAdded
                                       ? 'bg-green-100 text-green-700 border-green-200'
                                       : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
@@ -2219,7 +2222,7 @@ const TaskManagementApp = () => {
                               </button>
                               {subtask.dueDate && (
                                 <button
-                                  className={`text-xs flex items-center ml-1 border rounded px-1 ${
+                                  className={`text-xs flex items-center ml-1 ${
                                     subtask.isCalendarAdded
                                       ? 'bg-green-100 text-green-700 border-green-200'
                                       : 'text-purple-500 hover:text-purple-700 border-purple-200 hover:bg-purple-50'
@@ -2491,6 +2494,56 @@ const TaskManagementApp = () => {
       const [major, minor, patch] = prev.split('.').map(Number);
       return `${major}.${minor}.${patch + 1}`;
     });
+  };
+
+  // カレンダーエクスポートコンポーネント
+  const CalendarExportButton = ({ task, isSubtask = false, subtask = null }) => {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          generateICSFile(task, isSubtask, subtask);
+        }}
+        className="text-blue-500 hover:text-blue-700"
+        title="カレンダーに追加"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </button>
+    );
+  };
+  
+  // サブタスクのステータス表示コンポーネント
+  const SubtaskStatusLabel = ({ status }) => {
+    let label, className;
+    
+    switch (status) {
+      case TASK_STATUS.TODO:
+        label = '未';
+        className = 'bg-gray-100 text-gray-700';
+        break;
+      case TASK_STATUS.IN_PROGRESS:
+        label = '進';
+        className = 'bg-blue-100 text-blue-700';
+        break;
+      case TASK_STATUS.DONE:
+        label = '完';
+        className = 'bg-green-100 text-green-700';
+        break;
+      default:
+        label = '未';
+        className = 'bg-gray-100 text-gray-700';
+    }
+    
+    return (
+      <span 
+        className={`px-1.5 py-0.5 rounded text-xs font-medium ${className}`}
+        title={status === TASK_STATUS.TODO ? '未着手' : status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
+      >
+        {label}
+      </span>
+    );
   };
 
   return (
