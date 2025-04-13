@@ -375,19 +375,13 @@ const TaskManagementApp = () => {
         task.id === taskId
           ? {
               ...task,
-              comments: [...task.comments, newComment],
+              comments: [...(task.comments || []), newComment],
             }
           : task
       );
       
       // タスク状態を更新
       setTasks(updatedTasks);
-      
-      // 選択中のタスクも更新して表示を反映
-      const updatedTask = updatedTasks.find(task => task.id === taskId);
-      if (updatedTask && selectedTask && selectedTask.id === taskId) {
-        setSelectedTask(updatedTask);
-      }
       
       // コメント入力欄をクリア
       setCommentInputs(prev => ({
@@ -2200,41 +2194,44 @@ const TaskManagementApp = () => {
           </div>
 
           {/* コメントセクション */}
-          <div>
+          <div className="mt-6">
             <h3 className="font-semibold text-gray-700 mb-2">コメント</h3>
-            <div className="space-y-2 mb-4">
-              {currentTask.comments && currentTask.comments.length > 0 ? (
-                currentTask.comments.map(comment => (
-                  <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <p className="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
-                      <button
-                        onClick={() => onDeleteComment(currentTask.id, comment.id)}
-                        className="text-red-500 hover:text-red-700 ml-2"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{formatDate(comment.createdAt)}</p>
+            <div className="space-y-4 mb-4">
+              {currentTask.comments && currentTask.comments.map(comment => (
+                <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <p className="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
+                    <button
+                      onClick={() => deleteComment(currentTask.id, comment.id)}
+                      className="text-red-500 hover:text-red-700 ml-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
-                ))
-              ) : (
-                <p className="text-gray-500 italic bg-gray-50 p-3 rounded text-center">コメントはありません</p>
-              )}
+                  <div className="text-sm text-gray-500 mt-1">
+                    {formatDate(comment.createdAt)}
+                  </div>
+                </div>
+              ))}
             </div>
-            <form onSubmit={handleCommentSubmit}>
+            
+            {/* コメント入力フォーム */}
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              addComment(currentTask.id);
+            }}>
               <textarea
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
-                value={commentInputs[currentTask?.id] || ''}
-                onChange={handleCommentChange}
+                value={commentInputs[currentTask.id] || ''}
+                onChange={(e) => handleCommentChange(currentTask.id, e.target.value)}
                 onKeyDown={(e) => {
                   if (e.ctrlKey && e.key === 'Enter') {
                     e.preventDefault();
-                    handleCommentSubmit(e);
+                    addComment(currentTask.id);
                   }
                 }}
               />
