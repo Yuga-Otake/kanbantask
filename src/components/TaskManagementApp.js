@@ -360,9 +360,7 @@ const TaskManagementApp = () => {
 
   // コメントを追加
   const addComment = (taskId) => {
-    // refから現在の値を取得
-    const commentInput = document.querySelector(`textarea[placeholder="コメントを入力..."]`);
-    const commentText = commentInput ? commentInput.value : commentInputs[taskId] || '';
+    const commentText = commentInputs[taskId] || '';
     
     if (commentText && commentText.trim()) {
       // 新しいコメントオブジェクトを作成
@@ -396,15 +394,6 @@ const TaskManagementApp = () => {
         ...prev,
         [taskId]: ''
       }));
-      
-      // 直接DOMを操作してコメント入力欄をクリアしてフォーカスを維持
-      if (commentInput) {
-        commentInput.value = '';
-        // フォーカスを維持
-        setTimeout(() => {
-          commentInput.focus();
-        }, 10);
-      }
     }
   };
 
@@ -2257,17 +2246,18 @@ const TaskManagementApp = () => {
               addComment(currentTask.id);
             }}>
               <textarea
-                ref={commentInputRef}
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
                 value={commentInputs[currentTask?.id] || ''}
-                onChange={(e) => setCommentInputs(prev => ({
-                  ...prev,
-                  [currentTask.id]: e.target.value
-                }))}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setCommentInputs(prev => ({
+                    ...prev,
+                    [currentTask.id]: newValue
+                  }));
+                }}
                 onKeyDown={(e) => {
-                  // Ctrl+Enterでコメント送信
                   if (e.ctrlKey && e.key === 'Enter') {
                     e.preventDefault();
                     addComment(currentTask.id);
