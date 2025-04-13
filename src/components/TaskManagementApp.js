@@ -3,6 +3,31 @@ import { getDueDateClassName } from '../utils/dateUtils';
 
 const TaskManagementApp = () => {
   const [version, setVersion] = useState('1.1.8');
+  
+  // タスク一覧
+  const [tasks, setTasks] = useState(() => {
+    // ローカルストレージからデータの読み込み
+    const savedTasks = localStorage.getItem('kanban-tasks');
+    return savedTasks ? JSON.parse(savedTasks) : [];
+  });
+  
+  // プロジェクトの順序情報
+  const [projectOrder, setProjectOrder] = useState(() => {
+    const savedOrder = localStorage.getItem('kanban-project-order');
+    return savedOrder ? JSON.parse(savedOrder) : {};
+  });
+
+  // ビュータイプの状態（カンバンビューか表形式ビューか）
+  const [viewType, setViewType] = useState(() => {
+    const savedViewType = localStorage.getItem('kanban-view-type');
+    return savedViewType || 'kanban'; // デフォルトはカンバンビュー
+  });
+
+  // 表形式ビューのソート状態
+  const [tableSorting, setTableSorting] = useState({
+    column: 'dueDate',
+    direction: 'asc'
+  });
 
   // 日付のフォーマット（MM/DD形式）
   const formatDate = (dateString) => {
@@ -269,19 +294,6 @@ const TaskManagementApp = () => {
     DONE: 'done'
   };
 
-  // タスクの状態管理
-  const [tasks, setTasks] = useState(() => {
-    // ローカルストレージからデータの読み込み
-    const savedTasks = localStorage.getItem('kanban-tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [];
-  });
-  
-  // プロジェクトの順序情報
-  const [projectOrder, setProjectOrder] = useState(() => {
-    const savedOrder = localStorage.getItem('kanban-project-order');
-    return savedOrder ? JSON.parse(savedOrder) : {};
-  });
-  
   const [draggedProject, setDraggedProject] = useState(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
@@ -321,15 +333,20 @@ const TaskManagementApp = () => {
     }
   }, [projectOrder]);
 
+  // ビュータイプが変更されたら保存
+  useEffect(() => {
+    localStorage.setItem('kanban-view-type', viewType);
+  }, [viewType]);
+
   // タスクが変更されたときにプロジェクトの順序を再計算
   useEffect(() => {
     if (tasks.length > 0) {
       recalculateProjectOrder();
     }
-  }, [tasks, recalculateProjectOrder]);
+  }, [tasks]);
 
   // プロジェクトの順序を再計算する関数
-  const recalculateProjectOrder = useCallback(() => {
+  const recalculateProjectOrder = () => {
     const allProjects = [...new Set(tasks
       .map(task => task.project)
       .filter(project => project && project.trim() !== '')
@@ -366,7 +383,7 @@ const TaskManagementApp = () => {
     
     setProjectOrder(newOrder);
     return newOrder;
-  }, [tasks, projectOrder]);
+  };
 
   // プロジェクトリストの取得（順序を考慮）
   const getProjects = () => {
@@ -660,6 +677,7 @@ const TaskManagementApp = () => {
         
       result = result.filter(task => {
         if (!task.dueDate) return false;
+        
         
         const dueDate = new Date(task.dueDate);
         dueDate.setHours(0, 0, 0, 0);
@@ -2623,211 +2641,437 @@ const TaskManagementApp = () => {
     fileInputRef.current.click();
   };
 
-  return (
-    <div className="w-screen min-h-screen p-4 bg-white rounded-lg shadow-lg max-w-none">
-      <style>{customStyles}</style>
-      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理 v1.1.8</h1>
+  // ビュータイプが変更されたら保存
+  useEffect(() => {
+    localStorage.setItem('kanban-view-type', viewType);
+  }, [viewType]);
+
+  // 表形式ビューでのソート処理
+  const handleTableSort = (column) => {
+    setTableSorting(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // ソートされたタスクリストを取得
+  const getSortedTasks = () => {
+    // すべてのタスクをフラット化（サブタスクも含める）
+    const allTasks = [...tasks];
+    
+    // サブタスクを独立したタスクとして変換して追加
+    tasks.forEach(task => {
+      if (task.subtasks && task.subtasks.length > 0) {
+        task.subtasks.forEach(subtask => {
+          allTasks.push({
+            ...subtask,
+            isSubtask: true,
+            parentTaskId: task.id,
+            parentTaskTitle: task.title,
+            project: task.project
+          });
+        });
+      }
+    });
+    
+    // フィルター適用
+    let filteredTasks = allTasks;
+    
+    // プロジェクトフィルター
+    if (projectFilter !== 'all') {
+      filteredTasks = filteredTasks.filter(task => task.project === projectFilter);
+    }
+    
+    // 期限フィルター
+    if (filter === 'due-soon') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const threeDaysLater = new Date(today);
+      threeDaysLater.setDate(today.getDate() + 3);
       
-      {/* データのインポート・エクスポートボタン - JSONデータの保存と読み込み */}
-      <div className="flex justify-center mb-4">
-        <button
-          onClick={exportData}
-          className="mx-1 px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 flex items-center"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          エクスポート
-        </button>
-        <button
-          onClick={openFileDialog}
-          className="mx-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          インポート
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={importData}
-          accept=".json"
-          style={{ display: 'none' }}
-        />
+      filteredTasks = filteredTasks.filter(task => {
+        if (!task.dueDate) return false;
+        
+        const dueDate = new Date(task.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        return dueDate >= today && dueDate <= threeDaysLater;
+      });
+    } else if (filter === 'overdue') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      filteredTasks = filteredTasks.filter(task => {
+        if (!task.dueDate) return false;
+        
+        const dueDate = new Date(task.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        return dueDate < today;
+      });
+    }
+    
+    // ソート処理
+    return filteredTasks.sort((a, b) => {
+      const { column, direction } = tableSorting;
+      const multiplier = direction === 'asc' ? 1 : -1;
+      
+      switch (column) {
+        case 'project':
+          return multiplier * (a.project || '').localeCompare(b.project || '');
+        
+        case 'title':
+          return multiplier * (a.title || a.text || '').localeCompare(b.title || b.text || '');
+        
+        case 'status':
+          return multiplier * (a.status || '').localeCompare(b.status || '');
+        
+        case 'dueDate':
+          // 日付でソート（日付がないものは後ろに）
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return multiplier * 1;
+          if (!b.dueDate) return multiplier * -1;
+          return multiplier * (new Date(a.dueDate) - new Date(b.dueDate));
+        
+        default:
+          return 0;
+      }
+    });
+  };
+
+  // 表形式ビューコンポーネント
+  const TableView = () => {
+    const sortedTasks = getSortedTasks();
+    
+    // ソートの方向を示すアイコン
+    const SortIcon = ({ column }) => {
+      if (tableSorting.column !== column) {
+        return <span className="text-gray-300">↕</span>;
+      }
+      return (
+        <span className="text-blue-500">
+          {tableSorting.direction === 'asc' ? '↑' : '↓'}
+        </span>
+      );
+    };
+    
+    return (
+      <div className="overflow-x-auto mt-4">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr className="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+              <th className="py-3 px-6 text-left cursor-pointer" onClick={() => handleTableSort('project')}>
+                プロジェクト <SortIcon column="project" />
+              </th>
+              <th className="py-3 px-6 text-left cursor-pointer" onClick={() => handleTableSort('title')}>
+                タスク <SortIcon column="title" />
+              </th>
+              <th className="py-3 px-6 text-left cursor-pointer" onClick={() => handleTableSort('status')}>
+                ステータス <SortIcon column="status" />
+              </th>
+              <th className="py-3 px-6 text-left cursor-pointer" onClick={() => handleTableSort('dueDate')}>
+                納期 <SortIcon column="dueDate" />
+              </th>
+              <th className="py-3 px-6 text-center">アクション</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-600 text-sm">
+            {sortedTasks.map(task => (
+              <tr key={`${task.isSubtask ? 'sub-' : ''}${task.id}`} className="border-b hover:bg-gray-50">
+                <td className="py-3 px-6 text-left">
+                  <div className="flex items-center">
+                    <div 
+                      className="w-3 h-3 rounded-full mr-2" 
+                      style={{ backgroundColor: getProjectColor(task.project || 'その他') }}
+                    ></div>
+                    <span>{task.project || 'その他'}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-6 text-left">
+                  <div className="flex items-center">
+                    {task.isSubtask && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                      </svg>
+                    )}
+                    <span className={task.isSubtask ? "text-gray-500 ml-4" : "font-medium"}>
+                      {task.title || task.text}
+                    </span>
+                    {task.isSubtask && (
+                      <span className="text-xs text-gray-400 ml-2">
+                        (親: {task.parentTaskTitle})
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="py-3 px-6 text-left">
+                  <span className={`py-1 px-3 rounded-full text-xs ${
+                    task.status === TASK_STATUS.TODO 
+                      ? 'bg-gray-200 text-gray-600' 
+                      : task.status === TASK_STATUS.IN_PROGRESS 
+                        ? 'bg-blue-200 text-blue-600' 
+                        : 'bg-green-200 text-green-600'
+                  }`}>
+                    {task.status === TASK_STATUS.TODO ? '未着手' :
+                     task.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
+                  </span>
+                </td>
+                <td className="py-3 px-6 text-left">
+                  <span className={`${getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}`}>
+                    {task.dueDate ? formatDate(task.dueDate) : '未設定'}
+                  </span>
+                </td>
+                <td className="py-3 px-6 text-center">
+                  <div className="flex items-center justify-center space-x-2">
+                    <button 
+                      onClick={() => task.isSubtask 
+                        ? startEditingSubtask(task.parentTaskId, task.id, task.text)
+                        : startEditing(task.id, task.title, task.dueDate, task.project)
+                      }
+                      className="text-blue-500 hover:text-blue-700"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (window.confirm(`${task.isSubtask ? 'サブタスク' : 'タスク'}を削除してもよろしいですか？`)) {
+                          task.isSubtask 
+                            ? deleteSubtask(task.parentTaskId, task.id) 
+                            : deleteTask(task.id);
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                    {!task.isSubtask && (
+                      <button 
+                        onClick={() => setCurrentTaskForModal(task)}
+                        className="text-purple-500 hover:text-purple-700"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {sortedTasks.length === 0 && (
+              <tr>
+                <td colSpan="5" className="py-4 text-center text-gray-500">
+                  表示するタスクがありません
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
+    );
+  };
+
+  // メインのレンダリング部分
+  return (
+    <div className="flex flex-col max-w-8xl mx-auto px-2 sm:px-6 py-4">
+      <style>{customStyles}</style>
       
-      {/* 新しいタスク入力フォーム - タスクタイトル、締め切り日、プロジェクト設定 */}
-      <div className="mb-4">
-        <div className="flex mb-2">
-          <input
-            type="text"
-            className="flex-grow p-2 border rounded-l"
-            placeholder="新しいタスクを入力..."
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            onKeyPress={handleKeyPress}
-            style={{ imeMode: 'active' }}
-            ref={taskInputRef}
-          />
-          <button
-            className="bg-blue-500 text-white p-2 rounded-r"
-            onClick={addTask}
+      {/* ヘッダー部分 */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2 sm:mb-0">
+          かんばんボード
+          <span className="text-sm font-normal text-gray-500 ml-2">v{version}</span>
+        </h1>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          {/* プロジェクトフィルター */}
+          <select
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+            className="bg-white border rounded px-3 py-1 text-sm"
           >
-            追加
+            <option value="all">すべてのプロジェクト</option>
+            {getProjects().map(project => (
+              <option key={project} value={project}>{project}</option>
+            ))}
+          </select>
+          
+          {/* フィルター */}
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="bg-white border rounded px-3 py-1 text-sm"
+          >
+            <option value="all">すべてのタスク</option>
+            <option value="due-soon">期限間近</option>
+            <option value="overdue">期限超過</option>
+          </select>
+          
+          {/* 表示方法切り替え */}
+          <div className="flex border rounded overflow-hidden">
+            <button
+              onClick={() => setViewType('kanban')}
+              className={`px-3 py-1 text-sm ${viewType === 'kanban' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}
+            >
+              カンバン
+            </button>
+            <button
+              onClick={() => setViewType('table')}
+              className={`px-3 py-1 text-sm ${viewType === 'table' ? 'bg-blue-500 text-white' : 'bg-white text-gray-600'}`}
+            >
+              表形式
+            </button>
+          </div>
+          
+          {/* エクスポート/インポートボタン */}
+          <button
+            onClick={exportData}
+            className="bg-gray-200 hover:bg-gray-300 rounded px-3 py-1 text-sm flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
+            </svg>
+            エクスポート
+          </button>
+          
+          <button
+            onClick={openFileDialog}
+            className="bg-gray-200 hover:bg-gray-300 rounded px-3 py-1 text-sm flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            インポート
+          </button>
+          <input
+            type="file"
+            id="file-input"
+            accept=".json"
+            onChange={importData}
+            style={{ display: 'none' }}
+          />
+          
+          {/* カレンダーエクスポート */}
+          <button
+            onClick={exportAllTasksToCalendar}
+            className="bg-gray-200 hover:bg-gray-300 rounded px-3 py-1 text-sm flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            カレンダーに追加
+          </button>
+          
+          {/* 表示切替 */}
+          <button
+            onClick={() => setViewMode(viewMode === 'normal' ? 'project' : 'normal')}
+            className={`rounded px-3 py-1 text-sm flex items-center ${viewMode === 'project' ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            {viewMode === 'project' ? 'タスク表示' : 'プロジェクト表示'}
           </button>
         </div>
-        <div className="flex flex-col md:flex-row gap-2">
-          {/* 締め切り日入力フィールド */}
+      </div>
+      
+      {/* 新規タスク入力フォーム */}
+      <div className="bg-white p-4 rounded shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
           <div className="flex-1">
-            <label className="block text-sm text-gray-600 mb-1">締め切り日：</label>
             <input
-              type="date"
-              className="w-full p-2 border rounded"
-              value={newTaskDueDate}
-              onChange={(e) => setNewTaskDueDate(e.target.value)}
+              type="text"
+              ref={taskInputRef}
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="新しいタスクを入力..."
+              className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          {/* プロジェクト入力フィールド - データリスト付き */}
-          <div className="flex-1">
-            <label className="block text-sm text-gray-600 mb-1">プロジェクト：</label>
-            <div className="flex">
-              <input
-                type="text"
-                className="flex-grow p-2 border rounded-l"
-                placeholder="プロジェクト名..."
-                list="project-list"
-                value={newTaskProject}
-                onChange={(e) => setNewTaskProject(e.target.value)}
-                style={{ imeMode: 'active' }}
-              />
-              <button
-                className="bg-gray-200 p-2 rounded-r text-gray-700"
-                onClick={() => setNewTaskProject('')}
-              >
-                クリア
-              </button>
-            </div>
-            {/* 既存プロジェクト名の候補リスト */}
-            <datalist id="project-list">
+          <div className="flex space-x-2">
+            <input
+              type="date"
+              value={newTaskDueDate}
+              onChange={(e) => setNewTaskDueDate(e.target.value)}
+              className="px-2 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="text"
+              value={newTaskProject}
+              onChange={(e) => setNewTaskProject(e.target.value)}
+              placeholder="プロジェクト名"
+              className="px-2 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              list="projects-list"
+            />
+            <datalist id="projects-list">
               {getProjects().map(project => (
                 <option key={project} value={project} />
               ))}
             </datalist>
-          </div>
-        </div>
-      </div>
-
-      {/* フィルターとカレンダーエクスポートボタン - タスク表示条件の選択 */}
-      <div className="mb-4">
-        <div className="flex flex-wrap justify-between mb-2">
-          <div className="flex flex-wrap">
-            {/* タスク表示フィルターボタン */}
             <button
-              className={`m-1 px-3 py-1 rounded ${filter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-              onClick={() => setFilter('all')}
+              onClick={addTask}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              すべて
+              追加
             </button>
-            <button
-              className={`m-1 px-3 py-1 rounded ${filter === 'due-soon' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-              onClick={() => setFilter('due-soon')}
-            >
-              期限間近
-            </button>
-            <button
-              className={`m-1 px-3 py-1 rounded ${filter === 'overdue' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-              onClick={() => setFilter('overdue')}
-            >
-              期限切れ
-            </button>
-          </div>
-          {/* カレンダー出力ボタン - すべてのタスクをカレンダーにエクスポート */}
-          <button
-            className="m-1 px-3 py-1 rounded bg-purple-500 text-white flex items-center hover:bg-purple-600 transition-colors"
-            onClick={exportAllTasksToCalendar}
-            title="すべてのタスクをカレンダーに追加"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            カレンダー出力
-          </button>
-        </div>
-
-        {/* プロジェクトフィルター - プロジェクト別の表示切替 */}
-        <div className="flex justify-center">
-          <div className="inline-flex rounded-md shadow-sm" role="group">
-            <button
-              className={`px-3 py-1 text-sm rounded-l ${projectFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-              onClick={() => setProjectFilter('all')}
-            >
-              全プロジェクト
-            </button>
-            {getProjects().map(project => (
-              <button
-                key={project}
-                className={`px-3 py-1 text-sm ${projectFilter === project ? 'text-white' : 'text-gray-700'}`}
-                style={{ 
-                  backgroundColor: projectFilter === project ? getProjectColor(project) : getProjectColor(project)
-                }}
-                onClick={() => setProjectFilter(project)}
-              >
-                {project}
-              </button>
-            ))}
           </div>
         </div>
       </div>
       
-      {/* カンバンボード - ドラッグ&ドロップでタスク状態を変更可能 */}
-      <div className="min-w-[500px] w-full flex flex-row justify-evenly overflow-x-auto pb-4 h-[calc(100vh-200px)]"
-      style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%',minwidth: '350px'}}>
-        {/* 未着手カラム - 新規タスクのデフォルト状態 */}
-        <KanbanColumn 
-          title="未着手" 
-          status={TASK_STATUS.TODO}
-          tasks={getFilteredTasks(TASK_STATUS.TODO)} 
-        />
-        {/* 進行中カラム - 作業中のタスク */}
-        <KanbanColumn 
-          title="進行中" 
-          status={TASK_STATUS.IN_PROGRESS}
-          tasks={getFilteredTasks(TASK_STATUS.IN_PROGRESS)} 
-        />
-        {/* 完了カラム - 終了したタスク */}
-        <KanbanColumn 
-          title="完了" 
-          status={TASK_STATUS.DONE}
-          tasks={getFilteredTasks(TASK_STATUS.DONE)} 
-        />
-      </div>
-
-      {/* 操作ガイド - ユーザーヘルプ情報 */}
-      <div className="mt-4 bg-blue-50 p-3 rounded text-sm text-blue-700">
-        <p>使い方: タスクカードを横方向にドラッグ＆ドロップして状態を変更できます。カードをつかんで左右に移動してみましょう。</p>
-        <p className="mt-1">カレンダー連携: 各タスクの「予定追加」ボタンをクリックすると.icsファイルがダウンロードされ、Outlookなどのカレンダーに予定として追加できます。</p>
+      {/* タスク統計 */}
+      <div className="flex flex-wrap justify-between mb-4 text-sm text-gray-600 space-x-2">
+        <div className="flex space-x-4">
+          <div>総タスク数: <span className="font-bold">{getTaskStats().total}</span></div>
+          <div>未着手: <span className="font-bold">{getTaskStats().todo}</span></div>
+          <div>進行中: <span className="font-bold">{getTaskStats().inProgress}</span></div>
+          <div>完了: <span className="font-bold">{getTaskStats().done}</span></div>
+        </div>
       </div>
       
-      {/* フッター情報 - タスク統計情報の表示 */}
-      <div className="mt-4 text-center text-sm text-gray-500">
-        {(() => {
-          const stats = getTaskStats();
-          return (
-            <p>
-              タスク数: {stats.total}個 
-              (未着手: {stats.todo}、
-              進行中: {stats.inProgress}、
-              完了: {stats.done})
-            </p>
-          );
-        })()}
-      </div>
-
-      {/* タスク詳細モーダル - タスク詳細表示と編集 */}
-      <TaskDetailModal
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
+      {/* メインコンテンツ - 表示方法に応じて切り替え */}
+      {viewType === 'kanban' ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <KanbanColumn
+            title="未着手"
+            status={TASK_STATUS.TODO}
+            tasks={getFilteredTasks(TASK_STATUS.TODO)}
+          />
+          <KanbanColumn
+            title="進行中"
+            status={TASK_STATUS.IN_PROGRESS}
+            tasks={getFilteredTasks(TASK_STATUS.IN_PROGRESS)}
+          />
+          <KanbanColumn
+            title="完了"
+            status={TASK_STATUS.DONE}
+            tasks={getFilteredTasks(TASK_STATUS.DONE)}
+          />
+        </div>
+      ) : (
+        <TableView />
+      )}
+      
+      {/* タスク詳細モーダル */}
+      {currentTaskForModal && (
+        <TaskDetailModal
+          task={currentTaskForModal}
+          onClose={() => setCurrentTaskForModal(null)}
+        />
+      )}
+      
+      {/* ファイルインポート用の隠し入力 */}
+      <input
+        type="file"
+        id="fileInput"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={importData}
       />
     </div>
   );
