@@ -1707,13 +1707,9 @@ const TaskManagementApp = () => {
 
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose, onAddComment, onDeleteComment }) => {
-    // コメント入力用のrefを作成
-    const commentInputRef = React.useRef(null);
-    // サブタスク入力用のrefを作成
-    const subtaskInputRef = React.useRef(null);
-    
     // 現在のタスク情報を取得するための状態変数
     const [currentTask, setCurrentTask] = useState(task);
+    const subtaskInputRef = React.useRef(null);
     
     // タスクが変更された場合に更新
     useEffect(() => {
@@ -1726,35 +1722,22 @@ const TaskManagementApp = () => {
       }
     }, [task, tasks]);
     
-    // フックは条件付きで呼び出さないようにする
-    React.useEffect(() => {
-      if (currentTask && commentInputRef.current) {
-        // 初期値を設定
-        commentInputRef.current.value = commentInputs[currentTask.id] || '';
-      }
-    }, [currentTask, commentInputs]);
-    
     if (!currentTask) return null;
 
-    const handleSubmit = (e) => {
+    const handleCommentSubmit = (e) => {
       e.preventDefault();
-      if (commentInputRef.current) {
-        const commentText = commentInputRef.current.value;
-        if (commentText && commentText.trim()) {
-          // コメントを追加
-          onAddComment(currentTask.id);
-          
-          // フォームをリセット
-          commentInputRef.current.value = '';
-          
-          // フォーカスを維持
-          setTimeout(() => {
-            if (commentInputRef.current) {
-              commentInputRef.current.focus();
-            }
-          }, 10);
-        }
+      const commentText = commentInputs[currentTask.id] || '';
+      if (commentText.trim()) {
+        addComment(currentTask.id);
       }
+    };
+
+    const handleCommentChange = (e) => {
+      const newValue = e.target.value;
+      setCommentInputs(prev => ({
+        ...prev,
+        [currentTask.id]: newValue
+      }));
     };
 
     const handleSubtaskSubmit = (e) => {
@@ -2241,26 +2224,17 @@ const TaskManagementApp = () => {
                 <p className="text-gray-500 italic bg-gray-50 p-3 rounded text-center">コメントはありません</p>
               )}
             </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              addComment(currentTask.id);
-            }}>
+            <form onSubmit={handleCommentSubmit}>
               <textarea
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
                 value={commentInputs[currentTask?.id] || ''}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setCommentInputs(prev => ({
-                    ...prev,
-                    [currentTask.id]: newValue
-                  }));
-                }}
+                onChange={handleCommentChange}
                 onKeyDown={(e) => {
                   if (e.ctrlKey && e.key === 'Enter') {
                     e.preventDefault();
-                    addComment(currentTask.id);
+                    handleCommentSubmit(e);
                   }
                 }}
               />
