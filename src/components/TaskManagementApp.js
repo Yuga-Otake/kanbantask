@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
 
 const TaskManagementApp = () => {
+  const [version, setVersion] = useState('1.0.0');
+
   // 日付をフォーマットする関数
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -1693,6 +1695,7 @@ const TaskManagementApp = () => {
   // 詳細モーダルコンポーネント
   const TaskDetailModal = ({ task, onClose }) => {
     const subtaskInputRef = React.useRef(null);
+    const commentInputRef = React.useRef(null);
     const [currentTask, setCurrentTask] = useState(task);
 
     // タスクが変更された場合に更新
@@ -1707,17 +1710,33 @@ const TaskManagementApp = () => {
     const handleCommentSubmit = (e) => {
       e.preventDefault();
       addComment(currentTask.id);
+      // コメント追加後にフォーカスを維持
+      setTimeout(() => {
+        if (commentInputRef.current) {
+          commentInputRef.current.focus();
+        }
+      }, 0);
     };
 
     const handleCommentKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         addComment(currentTask.id);
+        // コメント追加後にフォーカスを維持
+        setTimeout(() => {
+          if (commentInputRef.current) {
+            commentInputRef.current.focus();
+          }
+        }, 0);
       }
     };
 
     const handleCommentInputChange = (e) => {
-      handleCommentChange(currentTask.id, e.target.value);
+      const newValue = e.target.value;
+      setCommentInputs(prev => ({
+        ...prev,
+        [currentTask.id]: newValue
+      }));
     };
 
     // サブタスク追加のハンドラ
@@ -2207,6 +2226,7 @@ const TaskManagementApp = () => {
             {/* コメント入力フォーム */}
             <form onSubmit={handleCommentSubmit}>
               <textarea
+                ref={commentInputRef}
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
@@ -2411,10 +2431,21 @@ const TaskManagementApp = () => {
     setProjectOrder(newOrder);
   };
 
+  useEffect(() => {
+    handleVersionUpdate();
+  }, []);
+
+  const handleVersionUpdate = () => {
+    setVersion(prev => {
+      const [major, minor, patch] = prev.split('.').map(Number);
+      return `${major}.${minor}.${patch + 1}`;
+    });
+  };
+
   return (
     <div className="w-screen min-h-screen p-4 bg-white rounded-lg shadow-lg max-w-none">
       <style>{customStyles}</style>
-      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理 v1.0.1</h1>
+      <h1 className="text-2xl font-bold text-center mb-4">カンバン式タスク管理 v{version}</h1>
       
       {/* 新しいタスク入力フォーム */}
       <div className="mb-4">
