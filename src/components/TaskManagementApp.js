@@ -188,6 +188,7 @@ const TaskManagementApp = () => {
   const [commentInputs, setCommentInputs] = useState({});
   const taskInputRef = React.useRef(null);
   const [activeTask, setActiveTask] = useState(null);
+  const [viewMode, setViewMode] = useState('kanban');
 
   // タスクの変更をローカルストレージに保存
   useEffect(() => {
@@ -2466,9 +2467,199 @@ const TaskManagementApp = () => {
           </div>
         </div>
       </div>
+      
+      {/* ビュー切り替えボタン */}
+      <div className="mb-4 flex justify-center">
+        <div className="inline-flex rounded-md shadow-sm" role="group">
+          <button
+            className={`px-4 py-2 text-sm font-medium rounded-l-lg ${viewMode === 'kanban' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            onClick={() => setViewMode('kanban')}
+          >
+            <i className="fas fa-columns mr-1"></i> カンバン
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium rounded-r-lg ${viewMode === 'table' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            onClick={() => setViewMode('table')}
+          >
+            <i className="fas fa-table mr-1"></i> 表形式
+          </button>
+        </div>
+      </div>
+
+      {/* 表形式ビュー */}
+      {viewMode === 'table' && (
+        <div className="overflow-x-auto mb-4 border rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">タイトル</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ステータス</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">期限</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">プロジェクト</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {getProjects().map(project => {
+                // プロジェクト毎のタスクをフィルタリング
+                const projectTasks = getFilteredTasks().filter(task => task.project === project);
+                
+                if (projectTasks.length === 0) return null;
+                
+                return (
+                  <React.Fragment key={project}>
+                    {/* プロジェクトヘッダー行 */}
+                    <tr className="bg-blue-50">
+                      <td colSpan="5" className="px-6 py-2">
+                        <div className="flex items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                          </svg>
+                          <span className="font-semibold text-blue-700">{project}</span>
+                          <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                            {projectTasks.length}件
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    {/* プロジェクト内のタスク */}
+                    {projectTasks.map(task => (
+                      <React.Fragment key={task.id}>
+                        {/* 親タスク行 */}
+                        <tr 
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => setSelectedTask(task)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="font-medium text-gray-900">{task.title}</div>
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <span className="text-xs text-gray-500">
+                                サブタスク: {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              task.status === TASK_STATUS.TODO 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : task.status === TASK_STATUS.IN_PROGRESS 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : 'bg-green-100 text-green-800'
+                            }`}>
+                              {task.status === TASK_STATUS.TODO ? '未着手' : task.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {task.dueDate ? (
+                              <span className={getDueDateClassName(task.dueDate, task.status === TASK_STATUS.DONE)}>
+                                {formatDate(task.dueDate)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {task.project ? (
+                              <span 
+                                className="px-2 py-1 rounded text-white text-xs"
+                                style={{ backgroundColor: getProjectColor(task.project) }}
+                              >
+                                {task.project}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2">
+                            <button
+                              className="text-blue-600 hover:text-blue-900"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(task.id, task.title, task.dueDate, task.project);
+                              }}
+                            >
+                              編集
+                            </button>
+                            <button
+                              className="text-red-600 hover:text-red-900"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteTask(task.id);
+                              }}
+                            >
+                              削除
+                            </button>
+                          </td>
+                        </tr>
+                        
+                        {/* サブタスク行 */}
+                        {task.subtasks && task.subtasks.length > 0 && task.subtasks.map(subtask => (
+                          <tr key={subtask.id} className="bg-gray-50">
+                            <td className="px-6 py-2 whitespace-nowrap pl-10">
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={subtask.completed}
+                                  onChange={() => toggleSubtaskCompletion(task.id, subtask.id)}
+                                  className="mr-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <span className={`${subtask.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                                  {subtask.text}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-2 whitespace-nowrap">
+                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                subtask.status === TASK_STATUS.TODO 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : subtask.status === TASK_STATUS.IN_PROGRESS 
+                                    ? 'bg-blue-100 text-blue-800' 
+                                    : 'bg-green-100 text-green-800'
+                              }`}>
+                                {subtask.status === TASK_STATUS.TODO ? '未着手' : subtask.status === TASK_STATUS.IN_PROGRESS ? '進行中' : '完了'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-2 whitespace-nowrap">
+                              {subtask.dueDate ? (
+                                <span className={getDueDateClassName(subtask.dueDate, subtask.completed)}>
+                                  {formatDate(subtask.dueDate)}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-2 whitespace-nowrap">
+                              {/* サブタスクはプロジェクト列が空 */}
+                            </td>
+                            <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500 space-x-2">
+                              <button
+                                className="text-red-600 hover:text-red-900"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteSubtask(task.id, subtask.id);
+                                }}
+                              >
+                                削除
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      
       {/* カンバンボード */}
-      <div className="min-w-[500px] w-full flex flex-row justify-evenly overflow-x-auto pb-4 h-[calc(100vh-200px)]"
-      style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%',minwidth: '350px'}}>
+      {viewMode === 'kanban' && (
+        <div className="min-w-[500px] w-full flex flex-row justify-evenly overflow-x-auto pb-4 h-[calc(100vh-200px)]"
+        style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', width: '100%',minwidth: '350px'}}>
         <KanbanColumn 
           title="未着手" 
           status={TASK_STATUS.TODO}
@@ -2485,6 +2676,7 @@ const TaskManagementApp = () => {
           tasks={getFilteredTasks(TASK_STATUS.DONE)} 
         />
       </div>
+      )}
 
       {/* タスク統計情報 */}
       <div className="mt-4">
