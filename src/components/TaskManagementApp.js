@@ -20,45 +20,45 @@ const TaskManagementApp = () => {
     const now = new Date();
     const timeStamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+/g, '');
     
-    // 締め切り日を処理
+  // 締め切り日を処理
     const dueDateObj = new Date(dueDate);
-    
-    // 終日予定の場合、日付だけを取得して"YYYYMMDD"形式にする
+  
+  // 終日予定の場合、日付だけを取得して"YYYYMMDD"形式にする
     const dueDateFormatted = dueDateObj.toISOString().split('T')[0].replace(/-/g, '');
-    
-    // 終了日は開始日の翌日（Outlookの終日予定の仕様に合わせる）
+  
+  // 終了日は開始日の翌日（Outlookの終日予定の仕様に合わせる）
     const endDate = new Date(dueDateObj);
-    endDate.setDate(endDate.getDate() + 1);
-    const endDateFormatted = endDate.toISOString().split('T')[0].replace(/-/g, '');
-    
-    // ユニークIDの生成
+  endDate.setDate(endDate.getDate() + 1);
+  const endDateFormatted = endDate.toISOString().split('T')[0].replace(/-/g, '');
+  
+  // ユニークIDの生成
     const uid = `${timeStamp}-${isSubtask ? subtask.id : task.id}@kanban-task-app`;
-    
-    // タイトルの整形
+  
+  // タイトルの整形
     const title = isSubtask ? subtask.text : task.title;
     const formattedTitle = title.replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\n/g, '\\n');
-    const projectInfo = task.project ? `[${task.project}] ` : '';
-    
-    // .ics ファイルの内容を生成
-    let icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Kanban Task App//JP',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `DTSTAMP:${timeStamp.substring(0, 8)}T${timeStamp.substring(8, 14)}Z`,
-      `DTSTART;VALUE=DATE:${dueDateFormatted}`,
-      `DTEND;VALUE=DATE:${endDateFormatted}`,
+  const projectInfo = task.project ? `[${task.project}] ` : '';
+  
+  // .ics ファイルの内容を生成
+  let icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Kanban Task App//JP',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${timeStamp.substring(0, 8)}T${timeStamp.substring(8, 14)}Z`,
+    `DTSTART;VALUE=DATE:${dueDateFormatted}`,
+    `DTEND;VALUE=DATE:${endDateFormatted}`,
       `SUMMARY:${projectInfo}${formattedTitle}`,
-      'TRANSP:TRANSPARENT',
+    'TRANSP:TRANSPARENT',
       `DESCRIPTION:Kanban Task App からエクスポートされた${isSubtask ? 'サブタスク' : 'タスク'}\\n\\n状態: ${
         isSubtask ? (subtask.status === 'todo' ? '未着手' : subtask.status === 'in-progress' ? '進行中' : '完了')
         : (task.status === 'todo' ? '未着手' : task.status === 'in-progress' ? '進行中' : '完了')
-      }`,
-      'CLASS:PUBLIC',
-      'STATUS:CONFIRMED',
+    }`,
+    'CLASS:PUBLIC',
+    'STATUS:CONFIRMED',
       'END:VEVENT',
       'END:VCALENDAR'
     ].join('\r\n');
@@ -686,7 +686,7 @@ const TaskManagementApp = () => {
     const groupTasksByProject = () => {
       const grouped = {};
     
-      tasks.forEach(task => {
+    tasks.forEach(task => {
         const projectName = task.project || 'その他';
         if (!grouped[projectName]) {
           grouped[projectName] = [];
@@ -1385,6 +1385,41 @@ const TaskManagementApp = () => {
     
     .column-transition:hover {
       background-color: #f3f4f6;
+    }
+
+    /* レスポンシブデザインの改善 */
+    @media (max-width: 768px) {
+      .flex.items-center {
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      
+      /* カンバンボードのカラム */
+      .flex.justify-between.mt-6 {
+        flex-direction: column;
+      }
+      
+      .w-1/3 {
+        width: 100%;
+        margin-bottom: 1rem;
+      }
+      
+      /* サブタスクの表示を改善 */
+      .flex.items-center.text-sm {
+        flex-wrap: wrap;
+      }
+      
+      .flex.items-center.text-sm > .flex-1 {
+        width: 100%;
+        margin-bottom: 4px;
+      }
+      
+      .flex.items-center.text-sm > .flex.items-center {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 4px;
+        margin-left: 20px;
+      }
     }
   `;
 
@@ -2200,7 +2235,7 @@ const TaskManagementApp = () => {
                 currentTask.comments.map(comment => (
                   <div key={comment.id} className="bg-gray-50 p-3 rounded-lg">
                     <div className="flex justify-between items-start">
-                      <p className="text-gray-700">{comment.text}</p>
+                      <p className="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
                       <button
                         onClick={() => onDeleteComment(currentTask.id, comment.id)}
                         className="text-red-500 hover:text-red-700 ml-2"
@@ -2217,12 +2252,27 @@ const TaskManagementApp = () => {
                 <p className="text-gray-500 italic bg-gray-50 p-3 rounded text-center">コメントはありません</p>
               )}
             </div>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              addComment(currentTask.id);
+            }}>
               <textarea
                 ref={commentInputRef}
                 placeholder="コメントを入力..."
                 className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 rows="3"
+                value={commentInputs[currentTask?.id] || ''}
+                onChange={(e) => setCommentInputs(prev => ({
+                  ...prev,
+                  [currentTask.id]: e.target.value
+                }))}
+                onKeyDown={(e) => {
+                  // Ctrl+Enterでコメント送信
+                  if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    addComment(currentTask.id);
+                  }
+                }}
               />
               <button
                 type="submit"
